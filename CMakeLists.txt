@@ -1,0 +1,126 @@
+#
+# Copyright 2021, Unikie
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+cmake_minimum_required(VERSION 3.7.2)
+
+include(settings.cmake)
+
+project(teeos_amp C CXX ASM)
+
+set(LibUtilsDefaultZfLogLevel 3 CACHE INTERNAL "")
+
+find_package(seL4 REQUIRED)
+find_package(elfloader-tool REQUIRED)
+
+set(KernelRootCNodeSizeBits 13 CACHE INTERNAL "")
+
+sel4_import_kernel()
+
+set(ElfloaderImage "binary" CACHE STRING "" FORCE)
+
+elfloader_import_project()
+
+set(configure_string "")
+
+config_string(
+    TeeCommAppName TEE_COMM_APP_NAME
+    "TEE2REE communication app name"
+    DEFAULT "teeos_comm_app")
+
+add_config_library(teeos "${configure_string}")
+
+find_package(musllibc REQUIRED)
+find_package(util_libs REQUIRED)
+find_package(seL4_libs REQUIRED)
+find_package(sel4_projects_libs REQUIRED)
+
+set(UserLinkerGCSections OFF CACHE BOOL "" FORCE)
+
+musllibc_setup_build_environment_with_sel4runtime()
+sel4_import_libsel4()
+util_libs_import_libraries()
+sel4_libs_import_libraries()
+
+set(LibNanopb ON CACHE BOOL "" FORCE)
+sel4_projects_libs_import_libraries()
+
+set(ExtraCompileOptions
+    -Werror
+    -Wall
+    -Wextra
+    -g
+)
+
+# TEE2REE communication app
+add_executable(teeos_comm_app EXCLUDE_FROM_ALL
+    src/comm_app.c
+)
+
+target_compile_options(teeos_comm_app
+    PRIVATE
+    ${ExtraCompileOptions}
+)
+
+target_include_directories(teeos_comm_app 
+    PRIVATE
+        "include"
+)
+
+target_link_libraries(teeos_comm_app
+    PUBLIC
+        sel4_autoconf
+        muslc
+        sel4
+        sel4runtime
+        sel4allocman
+        sel4vka
+        sel4utils
+        sel4platsupport
+        sel4muslcsys
+    PRIVATE teeos_Config
+)
+
+include(cpio)
+MakeCPIO(teeos_comm_app.o "$<TARGET_FILE:${TeeCommAppName}>")
+
+# rootserver
+add_executable(teeos_root EXCLUDE_FROM_ALL
+    src/rootserver.c
+    teeos_comm_app.o
+)
+
+target_compile_options(teeos_root
+    PRIVATE
+    ${ExtraCompileOptions}
+    -Wno-unused-parameter
+)
+
+target_include_directories(teeos_root
+    PRIVATE
+        "include"
+)
+
+target_link_libraries(teeos_root 
+    PUBLIC
+        sel4_autoconf
+        muslc
+        sel4
+        sel4runtime
+        sel4allocman
+        sel4vka
+        sel4utils
+        sel4platsupport
+        sel4muslcsys
+    PRIVATE teeos_Config
+)
+
+# Set this image as the rootserver
+include(rootserver)
+DeclareRootserver(teeos_root)
+
+# Generate HSS payload binary. Only seL4 image is included.
+find_package(gen_hss_payload REQUIRED)
+gen_hss_payload_import_project()
