@@ -40,7 +40,7 @@ set(UseRiscVOpenSBI OFF CACHE BOOL "")
 set(IMAGE_START_ADDR "0x80200000" CACHE STRING "")
 set(RISCV64 ON CACHE BOOL "")
 set(PolarfireAmp ON CACHE BOOL "")
-add_compile_definitions(KERNEL_ELF_PADDR_BASE_START=0x1000000)
+add_compile_definitions(KERNEL_ELF_PADDR_BASE_START=0x400000)
 
 correct_platform_strings()
 
