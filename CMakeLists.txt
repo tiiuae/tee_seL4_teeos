@@ -64,7 +64,7 @@ target_compile_options(teeos_comm_app
     ${ExtraCompileOptions}
 )
 
-target_include_directories(teeos_comm_app 
+target_include_directories(teeos_comm_app
     PRIVATE
         "include"
 )
@@ -103,7 +103,7 @@ target_include_directories(teeos_root
         "include"
 )
 
-target_link_libraries(teeos_root 
+target_link_libraries(teeos_root
     PUBLIC
         sel4_autoconf
         muslc

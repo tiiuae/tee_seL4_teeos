@@ -80,6 +80,45 @@ static int setup_comm_ch()
     return 0;
 }
 
+static int wait_ree_setup()
+{
+    uint32_t tee2ree_magic = comm.ree2tee->ree_magic;
+    uint32_t ree2tee_magic = comm.tee2ree->ree_magic;
+
+    ZF_LOGI("waiting REE magic...");
+    /* wait until REE writes magic to both channels */
+    while(tee2ree_magic != COMM_MAGIC_REE || tee2ree_magic != ree2tee_magic) {
+        /* atomic load to prevent compiler optimization with
+           while loop comparison */
+        tee2ree_magic = __atomic_load_n(&comm.tee2ree->ree_magic,
+                                        __ATOMIC_RELAXED);
+        ree2tee_magic = __atomic_load_n(&comm.ree2tee->ree_magic,
+                                        __ATOMIC_RELAXED);
+        seL4_Yield();
+    }
+
+    ZF_LOGI("REE comm ready");
+
+    return 0;
+}
+
+static int wait_ree_msg()
+{
+    uint32_t head = comm.ree2tee->head;
+
+    ZF_LOGI("waiting value change...");
+    while(1) {
+        uint32_t new_head = __atomic_load_n(&comm.ree2tee->head, __ATOMIC_RELAXED);
+        if (head != new_head) {
+            head = new_head;
+            comm.tee2ree->head++;
+            ZF_LOGI("new_head: 0x%x", new_head);
+        }
+        seL4_Yield();
+    }
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     int error = -1;
@@ -105,4 +144,14 @@ int main(int argc, char **argv)
     if (error) {
         return error;
     }
+
+    /* Wait linux to init ree2tee channel */
+    error = wait_ree_setup();
+    if (error) {
+        return error;
+    }
+
+    error = wait_ree_msg();
+
+    return error;
 }

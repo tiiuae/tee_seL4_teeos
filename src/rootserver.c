@@ -38,8 +38,8 @@
 
 #define MEM_CACHED                      1
 
-#define FDT_PATH_REE2TEE                "/teeos/comm_ree2tee"
-#define FDT_PATH_TEE2REE                "/teeos/comm_tee2ree"
+#define FDT_PATH_REE2TEE                "/teeos_comm/ree2tee"
+#define FDT_PATH_TEE2REE                "/teeos_comm/tee2ree"
 
 #define RESUME_PROCESS                  1
 
