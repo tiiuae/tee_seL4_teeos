@@ -38,6 +38,7 @@
 
 #define MEM_CACHED                      1
 
+#define FDT_PATH_CTRL                   "/teeos_comm/ctrl"
 #define FDT_PATH_REE2TEE                "/teeos_comm/ree2tee"
 #define FDT_PATH_TEE2REE                "/teeos_comm/tee2ree"
 
@@ -45,13 +46,7 @@
 
 #define TEE_COMM_APP_BADGE              0x80
 
-enum comm_ch_tee {
-    COMM_CH_REE2TEE = 0,
-    COMM_CH_TEE2REE = 1,
-    COMM_CH_COUNT,
-};
-
-struct teeos_comm_ch {
+struct fdt_config {
     uintptr_t paddr;
     uint32_t len;
     void *root_addr;
@@ -76,7 +71,8 @@ struct root_env {
 
     ps_io_ops_t ops;
 
-    struct teeos_comm_ch comm_ch[COMM_CH_COUNT];
+    struct fdt_config ch_ctrl;
+    struct fdt_config comm_ch[COMM_CH_COUNT];
 
     struct app_env comm_app;
 };
@@ -84,8 +80,8 @@ static struct root_env root_ctx = { 0 };
 
 struct fdt_cb_token {
     struct root_env *ctx;
-    uint32_t ch_id;
     const char *fdt_path;
+    struct fdt_config *config;
 };
 
 static void root_exit(int code)
@@ -166,15 +162,14 @@ static int lauch_comm_app(struct root_env *ctx, sel4utils_process_t *new_process
 static int fdt_reg_cb(pmem_region_t pmem, unsigned curr_num, size_t num_regs, void *token)
 {
     struct fdt_cb_token *fdt_token = (struct fdt_cb_token *)token;
-    struct teeos_comm_ch *ch = &fdt_token->ctx->comm_ch[fdt_token->ch_id];
     
     if (curr_num != 0) {
         ZF_LOGF("invalid reg: %d", curr_num);
         return EINVAL;
     }
 
-    ch->paddr = pmem.base_addr;
-    ch->len = pmem.length;
+    fdt_token->config->paddr = pmem.base_addr;
+    fdt_token->config->len = pmem.length;
 
     return 0;
 }
@@ -208,7 +203,7 @@ static int get_ch_fdt(struct fdt_cb_token *token)
 static int get_teeos_comm_ch(struct root_env *ctx, struct fdt_cb_token *token)
 {
     int err = -1;
-    struct teeos_comm_ch *ch = &token->ctx->comm_ch[token->ch_id];
+    struct fdt_config *ch = token->config;
     int page_count = 0;
     sel4utils_process_t *app_proc = &ctx->comm_app.app_proc;
 
@@ -230,9 +225,6 @@ static int get_teeos_comm_ch(struct root_env *ctx, struct fdt_cb_token *token)
         ZF_LOGF("ps_io_map failed: %p / %d", (void *)ch->paddr, ch->len);
         return EIO;
     }
-
-    ZF_LOGI("comm_ch [%d] %p - %p, vaddr %p", token->ch_id, (void *)ch->paddr,
-            (void *)(ch->paddr + ch->len - 1), (void *)ch->root_addr);
 
     /* share mapped channel to app vspace */
     page_count = BYTES_TO_SIZE_BITS_PAGES(ch->len, seL4_PageBits);
@@ -259,29 +251,41 @@ static int map_ree_comm_ch(struct root_env *ctx)
         .ctx = ctx,
     };
 
-    /* REE -> TEE */
-    fdt_token.ch_id = COMM_CH_REE2TEE;
-    fdt_token.fdt_path = FDT_PATH_REE2TEE;
+    /* Separate shared area reserved for ring buffer status data */
+    fdt_token.fdt_path = FDT_PATH_CTRL;
+    fdt_token.config = &ctx->ch_ctrl;
     err = get_teeos_comm_ch(ctx, &fdt_token);
     if (err) {
         return err;
     }
+
+    ZF_LOGI("ctrl    %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
+            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
+            (void *)fdt_token.config->root_addr);
+
+    /* REE -> TEE */
+    fdt_token.fdt_path = FDT_PATH_REE2TEE;
+    fdt_token.config = &ctx->comm_ch[COMM_CH_REE2TEE];
+    err = get_teeos_comm_ch(ctx, &fdt_token);
+    if (err) {
+        return err;
+    }
+
+    ZF_LOGI("ree2tee %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
+            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
+            (void *)fdt_token.config->root_addr);
 
     /* TEE -> REE */
-    fdt_token.ch_id = COMM_CH_TEE2REE;
     fdt_token.fdt_path = FDT_PATH_TEE2REE;
+    fdt_token.config = &ctx->comm_ch[COMM_CH_TEE2REE];
     err = get_teeos_comm_ch(ctx, &fdt_token);
     if (err) {
         return err;
     }
 
-    if (ctx->comm_ch[COMM_CH_REE2TEE].len !=
-        ctx->comm_ch[COMM_CH_TEE2REE].len) {
-        ZF_LOGF("mismatch buf len: %d / %d",
-                ctx->comm_ch[COMM_CH_REE2TEE].len,
-                ctx->comm_ch[COMM_CH_TEE2REE].len);
-        return EINVAL;
-        }
+    ZF_LOGI("tee2ree %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
+            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
+            (void *)fdt_token.config->root_addr);
 
     return err;
 }
@@ -290,9 +294,12 @@ static int send_comm_ch_addr(struct root_env *ctx)
 {
     struct ipc_msg_ch_addr ch_addr = {
         .cmd_id = IPC_CMD_CH_ADDR,
+        .ctrl = (uintptr_t)ctx->ch_ctrl.app_addr,
+        .ctrl_len = ctx->ch_ctrl.len,
         .ree2tee = (uintptr_t)ctx->comm_ch[COMM_CH_REE2TEE].app_addr,
+        .ree2tee_len = ctx->comm_ch[COMM_CH_REE2TEE].len,
         .tee2ree = (uintptr_t)ctx->comm_ch[COMM_CH_TEE2REE].app_addr,
-        .len = ctx->comm_ch[COMM_CH_REE2TEE].len,
+        .tee2ree_len = ctx->comm_ch[COMM_CH_REE2TEE].len,
     };
 
     const uint32_t msg_words = IPC_CMD_WORDS(ch_addr);
@@ -396,8 +403,6 @@ int main(void)
     if (err) {
         return err;
     }
-
-    seL4_DebugDumpScheduler();
 
     return 0;
 }
