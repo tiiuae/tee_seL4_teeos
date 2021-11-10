@@ -17,7 +17,7 @@ struct tee_comm_ctrl {
 
 struct tee_comm_ch {
     struct tee_comm_ctrl *ctrl;
-    uint32_t buf_len;
+    int32_t buf_len;
     char *buf;
 };
 /***************************************/
