@@ -41,6 +41,8 @@
 #define FDT_PATH_CTRL                   "/teeos_comm/ctrl"
 #define FDT_PATH_REE2TEE                "/teeos_comm/ree2tee"
 #define FDT_PATH_TEE2REE                "/teeos_comm/tee2ree"
+#define FDT_PATH_MBOX                   "/mailbox"
+#define FDT_PATH_SYSREGCB               "/sysregscb"
 
 #define RESUME_PROCESS                  1
 
@@ -74,12 +76,14 @@ struct root_env {
 
     struct fdt_config ch_ctrl;
     struct fdt_config comm_ch[COMM_CH_COUNT];
+    struct fdt_config mbox;
+    struct fdt_config sysregcb;
 
     seL4_CPtr root_ep;
     seL4_CPtr inter_app_ep1;
 
     struct app_env comm_app;
-    struct app_env app_2;
+    struct app_env sys_app;
 };
 static struct root_env root_ctx = { 0 };
 
@@ -332,6 +336,40 @@ static int map_ree_comm_ch(struct root_env *ctx)
     return err;
 }
 
+static int map_sysctl(struct root_env *ctx)
+{
+    int err = -1;
+    struct fdt_cb_token fdt_token = {
+        .ctx = ctx,
+    };
+
+    fdt_token.fdt_path = FDT_PATH_MBOX;
+    fdt_token.config = &ctx->mbox;
+    err =  map_from_fdt(ctx, &fdt_token, &ctx->sys_app.app_proc);
+    if (err) {
+        ZF_LOGF("Map mailbox failed");
+        return err;
+    }
+
+    ZF_LOGI("Mbox %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
+            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
+            (void *)fdt_token.config->root_addr);
+
+    fdt_token.fdt_path = FDT_PATH_SYSREGCB;
+    fdt_token.config = &ctx->sysregcb;
+    err =  map_from_fdt(ctx, &fdt_token, &ctx->sys_app.app_proc);
+    if (err) {
+        ZF_LOGF("Map sysregcb failed");
+        return err;
+    }
+
+    ZF_LOGI("sysregcb %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
+            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
+            (void *)fdt_token.config->root_addr);
+
+    return err;
+}
+
 static void send_comm_ch_addr(struct root_env *ctx)
 {
     struct ipc_msg_ch_addr ch_addr = {
@@ -371,7 +409,7 @@ static void send_inter_app_ep(struct root_env *ctx, seL4_Word sender)
         ep_msg.app_ep = ctx->comm_app.app_ep1;
         break;
     case APP2_BADGE:
-        ep_msg.app_ep = ctx->app_2.app_ep1;
+        ep_msg.app_ep = ctx->sys_app.app_ep1;
         break;
     /* Do nothing for unknown senders */
     default:
@@ -507,13 +545,18 @@ int main(void)
         return err;
     }
 
-    err = lauch_app(ctx, &ctx->app_2, CONFIG_APP2_NAME, APP2_BADGE);
+    err = lauch_app(ctx, &ctx->sys_app, CONFIG_APP2_NAME, APP2_BADGE);
     if (err) {
         return err;
     }
 
     /* Map REE communication channels */
     err = map_ree_comm_ch(ctx);
+    if (err) {
+        return err;
+    }
+
+    err = map_sysctl(ctx);
     if (err) {
         return err;
     }
