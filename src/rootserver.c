@@ -217,7 +217,7 @@ static int fdt_reg_cb(pmem_region_t pmem, unsigned curr_num, size_t num_regs, vo
     return 0;
 }
 
-static int get_ch_fdt(struct fdt_cb_token *token)
+static int get_fdt_data(struct fdt_cb_token *token)
 {
     int err = -1;
     ps_fdt_cookie_t *fdt_cookie = NULL;
@@ -243,43 +243,42 @@ static int get_ch_fdt(struct fdt_cb_token *token)
     return err;
 }
 
-static int get_teeos_comm_ch(struct root_env *ctx, struct fdt_cb_token *token)
+static int map_from_fdt(struct root_env *ctx, struct fdt_cb_token *token, sel4utils_process_t *app_proc)
 {
     int err = -1;
-    struct fdt_config *ch = token->config;
+    struct fdt_config *cfg = token->config;
     int page_count = 0;
-    sel4utils_process_t *app_proc = &ctx->comm_app.app_proc;
 
     /* get config from devicetree */
-    err = get_ch_fdt(token);
+    err = get_fdt_data(token);
     if (err) {
         return err;
     }
 
-    if (!ch->paddr || ch->len == 0) {
-        ZF_LOGF("invalid config paddr: %p, len %d", (void*)ch->paddr, ch->len);
+    if (!cfg->paddr || cfg->len == 0) {
+        ZF_LOGF("invalid config paddr: %p, len %d", (void*)cfg->paddr, cfg->len);
         return ENODEV;
     }
 
     /* map physical address to rootserver vspace*/
-    ch->root_addr = ps_io_map(&ctx->ops.io_mapper, ch->paddr, ch->len,
+    cfg->root_addr = ps_io_map(&ctx->ops.io_mapper, cfg->paddr, cfg->len,
                                 MEM_CACHED, PS_MEM_NORMAL);
-    if (!ch->root_addr) {
-        ZF_LOGF("ps_io_map failed: %p / %d", (void *)ch->paddr, ch->len);
+    if (!cfg->root_addr) {
+        ZF_LOGF("ps_io_map failed: %p / %d", (void *)cfg->paddr, cfg->len);
         return EIO;
     }
 
     /* share mapped channel to app vspace */
-    page_count = BYTES_TO_SIZE_BITS_PAGES(ch->len, seL4_PageBits);
-    ch->app_addr = vspace_share_mem(&ctx->vspace,
+    page_count = BYTES_TO_SIZE_BITS_PAGES(cfg->len, seL4_PageBits);
+    cfg->app_addr = vspace_share_mem(&ctx->vspace,
                                     &app_proc->vspace,
-                                    ch->root_addr,
+                                    cfg->root_addr,
                                     page_count,
                                     seL4_PageBits,
                                     seL4_AllRights,
                                     MEM_CACHED);
 
-    if (!ch->app_addr) {
+    if (!cfg->app_addr) {
         ZF_LOGF("vspace_share_mem == NULL");
         return EFAULT;
     }
@@ -297,7 +296,7 @@ static int map_ree_comm_ch(struct root_env *ctx)
     /* Separate shared area reserved for ring buffer status data */
     fdt_token.fdt_path = FDT_PATH_CTRL;
     fdt_token.config = &ctx->ch_ctrl;
-    err = get_teeos_comm_ch(ctx, &fdt_token);
+    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
     if (err) {
         return err;
     }
@@ -309,7 +308,7 @@ static int map_ree_comm_ch(struct root_env *ctx)
     /* REE -> TEE */
     fdt_token.fdt_path = FDT_PATH_REE2TEE;
     fdt_token.config = &ctx->comm_ch[COMM_CH_REE2TEE];
-    err = get_teeos_comm_ch(ctx, &fdt_token);
+    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
     if (err) {
         return err;
     }
@@ -321,7 +320,7 @@ static int map_ree_comm_ch(struct root_env *ctx)
     /* TEE -> REE */
     fdt_token.fdt_path = FDT_PATH_TEE2REE;
     fdt_token.config = &ctx->comm_ch[COMM_CH_TEE2REE];
-    err = get_teeos_comm_ch(ctx, &fdt_token);
+    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
     if (err) {
         return err;
     }
