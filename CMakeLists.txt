@@ -31,9 +31,9 @@ config_string(
     DEFAULT "teeos_comm_app")
 
 config_string(
-    App2Name APP2_NAME
-    "App2 name"
-    DEFAULT "app_2")
+    SysAppName SYS_APP_NAME
+    "System Control app name"
+    DEFAULT "sys_ctl_app")
 
 add_config_library(teeos "${configure_string}")
 
@@ -89,21 +89,21 @@ target_link_libraries(teeos_comm_app
 )
 
 # APP2
-add_executable(app_2 EXCLUDE_FROM_ALL
-    src/app2.c
+add_executable(sys_ctl_app EXCLUDE_FROM_ALL
+    src/sys_ctl_app.c
 )
 
-target_compile_options(app_2
+target_compile_options(sys_ctl_app
     PRIVATE
     ${ExtraCompileOptions}
 )
 
-target_include_directories(app_2
+target_include_directories(sys_ctl_app
     PRIVATE
         "include"
 )
 
-target_link_libraries(app_2
+target_link_libraries(sys_ctl_app
     PUBLIC
         sel4_autoconf
         muslc
@@ -122,7 +122,7 @@ include(cpio)
 set(cpio_files "")
 list(APPEND cpio_files
     "$<TARGET_FILE:${TeeCommAppName}>"
-    "$<TARGET_FILE:${App2Name}>"
+    "$<TARGET_FILE:${SysAppName}>"
 )
 
 MakeCPIO(apps.o "${cpio_files}")

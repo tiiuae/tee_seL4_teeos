@@ -47,7 +47,7 @@
 #define RESUME_PROCESS                  1
 
 #define TEE_COMM_APP_BADGE              0x80
-#define APP2_BADGE                      0x81
+#define SYS_APP_BADGE                   0x81
 
 struct fdt_config {
     uintptr_t paddr;
@@ -463,7 +463,7 @@ static void send_inter_app_ep(struct root_env *ctx, seL4_Word sender)
     case TEE_COMM_APP_BADGE:
         ep_msg.app_ep = ctx->comm_app.app_ep1;
         break;
-    case APP2_BADGE:
+    case SYS_APP_BADGE:
         ep_msg.app_ep = ctx->sys_app.app_ep1;
         break;
     /* Do nothing for unknown senders */
@@ -603,7 +603,7 @@ int main(void)
         return err;
     }
 
-    err = lauch_app(ctx, &ctx->sys_app, CONFIG_APP2_NAME, APP2_BADGE);
+    err = lauch_app(ctx, &ctx->sys_app, CONFIG_SYS_APP_NAME, SYS_APP_BADGE);
     if (err) {
         return err;
     }

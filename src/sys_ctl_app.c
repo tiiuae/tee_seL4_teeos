@@ -102,8 +102,8 @@ int main(int argc, char **argv)
 {
     int error = -1;
 
-    ZF_LOGI("%s", CONFIG_APP2_NAME);
-    seL4_DebugNameThread(SEL4UTILS_TCB_SLOT, CONFIG_APP2_NAME);
+    ZF_LOGI("%s", CONFIG_SYS_APP_NAME);
+    seL4_DebugNameThread(SEL4UTILS_TCB_SLOT, CONFIG_SYS_APP_NAME);
 
     if (argc != 1) {
         ZF_LOGF("Invalid arg count: %d", argc);
