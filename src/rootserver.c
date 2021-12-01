@@ -61,6 +61,7 @@ struct app_env {
     seL4_CPtr root_ep;
     seL4_Word badge;
     seL4_CPtr app_ep1;
+    void *shared_mem;
 };
 
 struct root_env {
@@ -204,6 +205,33 @@ static int lauch_app(struct root_env *root_ctx, struct app_env *app_ctx,
     }
 
     return err;
+}
+
+static int create_shared_buffer(struct root_env *ctx, struct app_env *app_1, struct app_env *app_2)
+{
+
+    void *root_vaddr = NULL;
+
+    root_vaddr = vspace_new_pages(&ctx->vspace, seL4_AllRights, 1, seL4_PageBits);
+
+    if (!root_vaddr)
+    {
+        ZF_LOGF("Shared Memory allocation failed");
+        return ENOMEM;
+    }
+
+    /* share memory to applications */
+    app_1->shared_mem = vspace_share_mem(&ctx->vspace, &app_1->app_proc.vspace, root_vaddr, 1, PAGE_BITS_4K, seL4_AllRights, 1 );
+    app_2->shared_mem = vspace_share_mem(&ctx->vspace, &app_2->app_proc.vspace, root_vaddr, 1, PAGE_BITS_4K, seL4_AllRights, 1 );
+
+    if ((!app_1->shared_mem)||(!app_2->shared_mem))
+    {
+         ZF_LOGF("Mapping shared memory failed");
+        return ENOMEM;
+    }
+
+    ZF_LOGI("Root Addr = %p APP_1 addr = %p APP_2 addr = %p", root_vaddr, app_1->shared_mem, app_2->shared_mem);
+    return 0;
 }
 
 static int fdt_reg_cb(pmem_region_t pmem, unsigned curr_num, size_t num_regs, void *token)
@@ -546,6 +574,11 @@ int main(void)
     }
 
     err = lauch_app(ctx, &ctx->sys_app, CONFIG_APP2_NAME, APP2_BADGE);
+    if (err) {
+        return err;
+    }
+
+    err = create_shared_buffer(ctx, &ctx->comm_app, &ctx->sys_app);
     if (err) {
         return err;
     }
