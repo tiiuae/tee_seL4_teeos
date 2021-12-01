@@ -28,6 +28,7 @@
 #include <linux/circ_buf.h>
 
 seL4_CPtr ipc_root_ep = 0;
+seL4_CPtr ipc_app_ep1 = 0;
 
 struct comm_ch {
     struct tee_comm_ch ree2tee;
@@ -54,48 +55,47 @@ static sync_spinlock_t writer_lock;
 
 static char *ree_msg_buf = NULL;
 
-static int setup_comm_ch()
+static int setup_comm_ch(void)
 {
-    seL4_Word sender_badge = 0;
-    seL4_MessageInfo_t msg_info = { 0 };
+    int error = -1;
 
-    struct ipc_msg_ch_addr ch_addr = { 0 };
-    seL4_Word *msg_data = (seL4_Word *)&ch_addr;
+    /* IPC response */
+    struct ipc_msg_ch_addr ipc_resp = { 0 };
+    const uint32_t RESP_WORDS = IPC_CMD_WORDS(ipc_resp);
+    seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
 
     struct tee_comm_ctrl *ch_ctrl = 0;
 
-    ZF_LOGI("Waiting channel setup..");
-    msg_info = seL4_Recv(ipc_root_ep, &sender_badge);
+    ZF_LOGI("seL4_Call: IPC_CMD_CH_ADDR_REQ");
 
-    seL4_Word msg_len = seL4_MessageInfo_get_length(msg_info);
-    if (msg_len != IPC_CMD_WORDS(ch_addr)) {
-        ZF_LOGF("ipc msg_len: %ld", msg_len);
-        return -EINVAL;
+    error = ipc_msg_call(IPC_CMD_CH_ADDR_REQ,
+                         ipc_root_ep,
+                         RESP_WORDS,
+                         msg_data);
+
+    if (error) {
+        return error;
     }
 
-    for (seL4_Word i = 0; i < msg_len; i++) {
-        msg_data[i] = seL4_GetMR(i);
-    }
-
-    if (ch_addr.cmd_id != IPC_CMD_CH_ADDR) {
-        ZF_LOGF("ipc cmd_id: %p", (void *)ch_addr.cmd_id);
+    if (ipc_resp.cmd_id != IPC_CMD_CH_ADDR_RESP) {
+        ZF_LOGF("ipc cmd_id: 0x%lx", ipc_resp.cmd_id);
         return -EPERM;
     }
 
-    if (ch_addr.ctrl_len < (sizeof(struct tee_comm_ctrl) * 2)) {
-        ZF_LOGF("ctrl len: %ld", ch_addr.ctrl_len);
+    if (ipc_resp.ctrl_len < (sizeof(struct tee_comm_ctrl) * 2)) {
+        ZF_LOGF("ctrl len: %ld", ipc_resp.ctrl_len);
         return -ENOBUFS;
     }
 
-    ch_ctrl = (struct tee_comm_ctrl *)ch_addr.ctrl;
+    ch_ctrl = (struct tee_comm_ctrl *)ipc_resp.ctrl;
 
     comm.ree2tee.ctrl = &ch_ctrl[COMM_CH_REE2TEE];
-    comm.ree2tee.buf_len = ch_addr.ree2tee_len;
-    comm.ree2tee.buf = (char *)ch_addr.ree2tee;
+    comm.ree2tee.buf_len = ipc_resp.ree2tee_len;
+    comm.ree2tee.buf = (char *)ipc_resp.ree2tee;
 
     comm.tee2ree.ctrl = &ch_ctrl[COMM_CH_TEE2REE];
-    comm.tee2ree.buf_len = ch_addr.tee2ree_len;
-    comm.tee2ree.buf = (char *)ch_addr.tee2ree;
+    comm.tee2ree.buf_len = ipc_resp.tee2ree_len;
+    comm.tee2ree.buf = (char *)ipc_resp.tee2ree;
 
     /* writer initializes channel */
     memset(comm.tee2ree.buf, 0x0, comm.tee2ree.buf_len);
@@ -114,6 +114,37 @@ static int setup_comm_ch()
 
     ZF_LOGI("ch: tee2ree.ctrl [%p], buf [%p]", comm.tee2ree.ctrl,
             comm.tee2ree.buf);
+
+    return 0;
+}
+
+static int setup_app_ep(void)
+{
+    int error = -1;
+
+    /* IPC response */
+    struct ipc_msg_app_ep ipc_resp = { 0 };
+    seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
+
+    ZF_LOGI("seL4_Call: IPC_CMD_APP_EP_REQ");
+
+    error = ipc_msg_call(IPC_CMD_APP_EP_REQ,
+                         ipc_root_ep,
+                         IPC_CMD_WORDS(ipc_resp),
+                         msg_data);
+
+    if (error) {
+        return error;
+    }
+
+    if (ipc_resp.cmd_id != IPC_CMD_APP_EP_RESP) {
+        ZF_LOGF("ipc cmd_id: 0x%lx", ipc_resp.cmd_id);
+        return -EPERM;
+    }
+
+    ipc_app_ep1 = ipc_resp.app_ep;
+
+    ZF_LOGI("ipc_app_ep1: 0x%lx", ipc_app_ep1);
 
     return 0;
 }
@@ -288,6 +319,31 @@ static int wait_ree_msg()
     return 0;
 }
 
+static void recv_from_app(void)
+{
+    seL4_MessageInfo_t msg_info = {0};
+    seL4_Word msg_len = 0;
+    seL4_Word sender_badge = 0;
+    seL4_Word msg_data = 0;
+
+    ZF_LOGI("Wait msg from app...");
+    msg_info = seL4_Recv(ipc_app_ep1, &sender_badge);
+    msg_len = seL4_MessageInfo_get_length(msg_info);
+
+    if (msg_len > 0) {
+        msg_data = seL4_GetMR(0);
+    }
+
+    ZF_LOGI("msg from 0x%lx (%ld) 0x%lx", sender_badge, msg_len, msg_data);
+
+    msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+    msg_data++;
+    seL4_SetMR(0, msg_data);
+
+    seL4_Reply(msg_info);
+}
+
+
 int main(int argc, char **argv)
 {
     int error = -1;
@@ -302,17 +358,25 @@ int main(int argc, char **argv)
 
     ipc_root_ep = (seL4_CPtr)atol(argv[0]);
     if (ipc_root_ep == 0) {
-        ZF_LOGF("Invalid endpoint");
+        ZF_LOGF("Invalid root endpoint");
         return -EFAULT;
     }
 
     ZF_LOGI("ipc_root_ep: %p", (void *)ipc_root_ep);
 
     /* Wait shared memory config from rootserver and init tee2ree channel */
-    error = setup_comm_ch(ipc_root_ep);
+    error = setup_comm_ch();
     if (error) {
         return error;
     }
+
+    error = setup_app_ep();
+    if (error) {
+        return error;
+    }
+
+    /* Ping-pong IPC */
+    recv_from_app();
 
     /* Wait linux to init ree2tee channel */
     error = wait_ree_setup();

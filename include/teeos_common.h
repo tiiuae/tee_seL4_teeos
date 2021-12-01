@@ -1,8 +1,6 @@
 #pragma once
 
-#include <sel4/simple_types.h>
-#include <sel4utils/vspace.h>
-
+#include <sel4/types.h>
 
 /****  Common definitions with REE  ****/
 #define COMM_MAGIC_TEE          0x87654321
@@ -31,7 +29,14 @@ enum comm_ch_tee {
 #define IPC_CMD_WORDS(x) (sizeof(x)/sizeof(seL4_Word))
 
 enum ipc_cmd {
-    IPC_CMD_CH_ADDR = 0x8000,
+    IPC_CMD_CH_ADDR_REQ = 0x8000,
+    IPC_CMD_CH_ADDR_RESP,
+    IPC_CMD_APP_EP_REQ,
+    IPC_CMD_APP_EP_RESP,
+};
+
+struct ipc_msg_req {
+    seL4_Word cmd_id;
 };
 
 struct ipc_msg_ch_addr {
@@ -43,6 +48,45 @@ struct ipc_msg_ch_addr {
     seL4_Word tee2ree;          /* TEE->REE circular buffer*/
     seL4_Word tee2ree_len;      /* Buffer length */
 };
+
+struct ipc_msg_app_ep {
+    seL4_Word cmd_id;
+    seL4_Word app_ep;
+};
+
+#define SINGLE_WORD_MSG         1
+
+static inline int ipc_msg_call(seL4_Word cmd,
+                               seL4_CPtr ep,
+                               const uint32_t resp_words,
+                               seL4_Word *resp_buf)
+{
+    /* IPC request*/
+    struct ipc_msg_req ipc_req = {
+        .cmd_id = cmd,
+    };
+
+    seL4_MessageInfo_t msg_info = { 0 };
+    seL4_Word msg_len = 0;
+
+    msg_info = seL4_MessageInfo_new(0, 0, 0, SINGLE_WORD_MSG);
+
+    seL4_SetMR(0, ipc_req.cmd_id);
+
+    msg_info = seL4_Call(ep, msg_info);
+
+    msg_len = seL4_MessageInfo_get_length(msg_info);
+    if (msg_len != resp_words) {
+        ZF_LOGF("invalid resp len: %ld / %d", msg_len, resp_words);
+        return -EINVAL;
+    }
+
+    for (uint32_t i = 0; i < resp_words; i++) {
+        resp_buf[i] = seL4_GetMR(i);
+    }
+
+    return 0;
+}
 
 static inline void app_hexdump(void* mem, size_t len)
 {

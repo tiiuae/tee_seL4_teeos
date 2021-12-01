@@ -45,6 +45,7 @@
 #define RESUME_PROCESS                  1
 
 #define TEE_COMM_APP_BADGE              0x80
+#define APP2_BADGE                      0x81
 
 struct fdt_config {
     uintptr_t paddr;
@@ -55,9 +56,9 @@ struct fdt_config {
 
 struct app_env {
     sel4utils_process_t app_proc;
-    seL4_CPtr app_ep;
-    seL4_Word badge;
     seL4_CPtr root_ep;
+    seL4_Word badge;
+    seL4_CPtr app_ep1;
 };
 
 struct root_env {
@@ -74,7 +75,11 @@ struct root_env {
     struct fdt_config ch_ctrl;
     struct fdt_config comm_ch[COMM_CH_COUNT];
 
+    seL4_CPtr root_ep;
+    seL4_CPtr inter_app_ep1;
+
     struct app_env comm_app;
+    struct app_env app_2;
 };
 static struct root_env root_ctx = { 0 };
 
@@ -90,52 +95,90 @@ static void root_exit(int code)
     seL4_TCB_Suspend(seL4_CapInitThreadTCB);
 }
 
-static int lauch_comm_app(struct root_env *ctx, sel4utils_process_t *new_process)
+static int create_eps(struct root_env *ctx)
 {
     int err = -1;
 
     /* rootserver endpoint for communication */
-    vka_object_t root_ep = {0};
+    vka_object_t ep = { 0 };
 
-    err = vka_alloc_endpoint(&ctx->vka, &root_ep);
+    err = vka_alloc_endpoint(&ctx->vka, &ep);
     if (err) {
         ZF_LOGF("vka_alloc_endpoint: %d", err);
         return err;
     }
 
-    ctx->comm_app.root_ep = root_ep.cptr;
+    ctx->root_ep = ep.cptr;
 
-    sel4utils_process_config_t config = 
-                        process_config_default_simple(&ctx->simple,
-                                                      CONFIG_TEE_COMM_APP_NAME,
-                                                      seL4_MaxPrio);
+    /* endpoint for inter app communication */
+    err = vka_alloc_endpoint(&ctx->vka, &ep);
+    if (err) {
+        ZF_LOGF("vka_alloc_endpoint: %d", err);
+        return err;
+    }
 
-    config = process_config_auth(config, simple_get_tcb(&ctx->simple));
+    ctx->inter_app_ep1 = ep.cptr;
+
+    return err;
+}
+
+static int mint_ep_to_process(struct root_env *root_ctx, seL4_CPtr root_ep,
+                              struct app_env *app, seL4_CPtr *app_ep)
+{
+    cspacepath_t ep_path;
+    vka_cspace_make_path(&root_ctx->vka, root_ep, &ep_path);
+
+    /* create badged endpoint for app process */
+    *app_ep = sel4utils_mint_cap_to_process(&app->app_proc, ep_path,
+                                            seL4_AllRights, app->badge);
+
+    if (!*app_ep) {
+        ZF_LOGF("app_ep == NULL");
+        return EBADSLT;
+    }
+
+    return 0;
+}
+
+static int lauch_app(struct root_env *root_ctx, struct app_env *app_ctx,
+                    const char *image_name, seL4_Word app_badge)
+{
+    int err = -1;
+
+    sel4utils_process_t *new_process = &app_ctx->app_proc;
+
+    sel4utils_process_config_t config = process_config_default_simple(
+        &root_ctx->simple, image_name, seL4_MaxPrio);
+
+    config = process_config_auth(config, simple_get_tcb(&root_ctx->simple));
     config = process_config_priority(config, seL4_MaxPrio);
-    err = sel4utils_configure_process_custom(new_process, &ctx->vka,
-                                                &ctx->vspace, config);
+    err = sel4utils_configure_process_custom(new_process, &root_ctx->vka,
+                                             &root_ctx->vspace, config);
     if (err) {
         ZF_LOGF("sel4utils_configure_process_custom: %d", err);
         return err;
     }
 
-    NAME_THREAD(new_process->thread.tcb.cptr, CONFIG_TEE_COMM_APP_NAME);
+    NAME_THREAD(new_process->thread.tcb.cptr, image_name);
 
-    ctx->comm_app.badge = TEE_COMM_APP_BADGE;
+    app_ctx->badge = app_badge;
 
-    /* comm_app endpoint for communication */
-    cspacepath_t ep_path;
-    vka_cspace_make_path(&ctx->vka, ctx->comm_app.root_ep, &ep_path);
+    /* Copy rootserver IPC caps to process */
+    err = mint_ep_to_process(root_ctx,
+                             root_ctx->root_ep,
+                             app_ctx,
+                             &app_ctx->root_ep);
+    if (err) {
+        return err;
+    }
 
-    /* create badged endpoint for app */
-    ctx->comm_app.app_ep = sel4utils_mint_cap_to_process(new_process,
-                                                        ep_path,
-                                                        seL4_AllRights,
-                                                        ctx->comm_app.badge);
-
-    if (!ctx->comm_app.app_ep) {
-        ZF_LOGF("app_ep == NULL");
-        return EIO;
+    /* Copy inter app IPC caps to process */
+    err = mint_ep_to_process(root_ctx,
+                             root_ctx->inter_app_ep1,
+                             app_ctx,
+                             &app_ctx->app_ep1);
+    if (err) {
+        return err;
     }
 
     #define APP_ARGC 1 /* local #define used for array initialization */
@@ -144,11 +187,11 @@ static int lauch_comm_app(struct root_env *ctx, sel4utils_process_t *new_process
 
     /* provide badged comm endpoint as arg */
     sel4utils_create_word_args(string_args, app_argv, APP_ARGC,
-                               ctx->comm_app.app_ep);
+                               app_ctx->root_ep);
 
     err = sel4utils_spawn_process_v(new_process,
-                                    &ctx->vka,
-                                    &ctx->vspace,
+                                    &root_ctx->vka,
+                                    &root_ctx->vspace,
                                     APP_ARGC, app_argv,
                                     RESUME_PROCESS);
     if (err) {
@@ -156,7 +199,7 @@ static int lauch_comm_app(struct root_env *ctx, sel4utils_process_t *new_process
         return err;
     }
 
-    return 0;
+    return err;
 }
 
 static int fdt_reg_cb(pmem_region_t pmem, unsigned curr_num, size_t num_regs, void *token)
@@ -290,10 +333,10 @@ static int map_ree_comm_ch(struct root_env *ctx)
     return err;
 }
 
-static int send_comm_ch_addr(struct root_env *ctx)
+static void send_comm_ch_addr(struct root_env *ctx)
 {
     struct ipc_msg_ch_addr ch_addr = {
-        .cmd_id = IPC_CMD_CH_ADDR,
+        .cmd_id = IPC_CMD_CH_ADDR_RESP,
         .ctrl = (uintptr_t)ctx->ch_ctrl.app_addr,
         .ctrl_len = ctx->ch_ctrl.len,
         .ree2tee = (uintptr_t)ctx->comm_ch[COMM_CH_REE2TEE].app_addr,
@@ -311,10 +354,77 @@ static int send_comm_ch_addr(struct root_env *ctx)
         seL4_SetMR(i, msg_data[i]);
     }
 
-    ZF_LOGI("Send comm ch info");
-    seL4_Send(ctx->comm_app.root_ep, msg_info);
+    ZF_LOGI("Send IPC_CMD_CH_ADDR_RESP");
+    seL4_Reply(msg_info);
+}
 
-    return 0;
+static void send_inter_app_ep(struct root_env *ctx, seL4_Word sender)
+{
+    struct ipc_msg_app_ep ep_msg = {
+        .cmd_id = IPC_CMD_APP_EP_RESP,
+    };
+    const uint32_t MSG_WORDS = IPC_CMD_WORDS(ep_msg);
+
+    seL4_Word *msg_data = (seL4_Word *)&ep_msg;
+
+    switch (sender) {
+    case TEE_COMM_APP_BADGE:
+        ep_msg.app_ep = ctx->comm_app.app_ep1;
+        break;
+    case APP2_BADGE:
+        ep_msg.app_ep = ctx->app_2.app_ep1;
+        break;
+    /* Do nothing for unknown senders */
+    default:
+        ZF_LOGE("unknown sender: 0x%lx", sender);
+    }
+
+    seL4_MessageInfo_t msg_info = seL4_MessageInfo_new(0, 0, 0, MSG_WORDS);
+    for (uint32_t i = 0; i < MSG_WORDS; i++) {
+        seL4_SetMR(i, msg_data[i]);
+    }
+
+    ZF_LOGI("Send IPC_CMD_APP_EP_RESP");
+    seL4_Reply(msg_info);
+}
+
+static void process_ipc_msg(struct root_env *ctx, seL4_Word sender, seL4_Word msg_len)
+{
+    seL4_Word ipc_cmd_id = 0;
+
+    ipc_cmd_id = seL4_GetMR(0);
+
+    switch (ipc_cmd_id) {
+    case IPC_CMD_CH_ADDR_REQ:
+        send_comm_ch_addr(ctx);
+        break;
+    case IPC_CMD_APP_EP_REQ:
+        send_inter_app_ep(ctx, sender);
+        break;
+    default:
+        ZF_LOGE("unknown cmd id: (0x%lx) 0x%lx", sender, ipc_cmd_id);
+        break;
+    }
+}
+
+static void recv_ipc_loop(struct root_env *ctx)
+{
+	seL4_Word sender = 0;
+    seL4_MessageInfo_t msg_info = { 0 };
+    seL4_Word msg_len = 0;
+
+    while (1) {
+        msg_info = seL4_Recv(ctx->root_ep, &sender);
+        msg_len = seL4_MessageInfo_get_length(msg_info);
+
+        /* Discard empty messages */
+        if (msg_len < 1) {
+            ZF_LOGE("empty msg: 0x%lx", sender);
+            continue;
+        }
+
+        process_ipc_msg(ctx, sender, msg_len);
+    }
 }
 
 int main(void)
@@ -386,8 +496,19 @@ int main(void)
 
     simple_print(&ctx->simple);
 
-    /* Start comm app process */
-    err = lauch_comm_app(ctx, &ctx->comm_app.app_proc);
+    /* Create endpoints for app <-> rootserver and app <-> app IPC */
+    err = create_eps(ctx);
+    if (err) {
+        return err;
+    }
+
+    /* Create, configure & launch app processes */
+    err = lauch_app(ctx, &ctx->comm_app, CONFIG_TEE_COMM_APP_NAME, TEE_COMM_APP_BADGE);
+    if (err) {
+        return err;
+    }
+
+    err = lauch_app(ctx, &ctx->app_2, CONFIG_APP2_NAME, APP2_BADGE);
     if (err) {
         return err;
     }
@@ -398,11 +519,8 @@ int main(void)
         return err;
     }
 
-    /* Send comm channels configuration to comm app */
-    err = send_comm_ch_addr(ctx);
-    if (err) {
-        return err;
-    }
+    /* IPC process loop */
+    recv_ipc_loop(ctx);
 
     return 0;
 }

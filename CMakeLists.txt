@@ -30,6 +30,11 @@ config_string(
     "TEE2REE communication app name"
     DEFAULT "teeos_comm_app")
 
+config_string(
+    App2Name APP2_NAME
+    "App2 name"
+    DEFAULT "app_2")
+
 add_config_library(teeos "${configure_string}")
 
 find_package(musllibc REQUIRED)
@@ -83,13 +88,49 @@ target_link_libraries(teeos_comm_app
     PRIVATE teeos_Config
 )
 
+# APP2
+add_executable(app_2 EXCLUDE_FROM_ALL
+    src/app2.c
+)
+
+target_compile_options(app_2
+    PRIVATE
+    ${ExtraCompileOptions}
+)
+
+target_include_directories(app_2
+    PRIVATE
+        "include"
+)
+
+target_link_libraries(app_2
+    PUBLIC
+        sel4_autoconf
+        muslc
+        sel4
+        sel4runtime
+        sel4allocman
+        sel4vka
+        sel4utils
+        sel4platsupport
+        sel4muslcsys
+    PRIVATE teeos_Config
+)
+
+# CPIO
 include(cpio)
-MakeCPIO(teeos_comm_app.o "$<TARGET_FILE:${TeeCommAppName}>")
+set(cpio_files "")
+list(APPEND cpio_files
+    "$<TARGET_FILE:${TeeCommAppName}>"
+    "$<TARGET_FILE:${App2Name}>"
+)
+
+MakeCPIO(apps.o "${cpio_files}")
 
 # rootserver
 add_executable(teeos_root EXCLUDE_FROM_ALL
     src/rootserver.c
-    teeos_comm_app.o
+    apps.o
 )
 
 target_compile_options(teeos_root
