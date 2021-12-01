@@ -423,6 +423,32 @@ static void send_comm_ch_addr(struct root_env *ctx)
     seL4_Reply(msg_info);
 }
 
+static int send_sys_ctl_addr(struct root_env *ctx)
+{
+    struct ipc_msg_cys_ctl_addr sys_ctl_addr = {
+        .cmd_id = IPC_CMD_SYS_CTL_ADDR_RESP,
+        .reg_base = (uintptr_t)ctx->mbox.app_addr,
+        .mbox_base = (uintptr_t)(ctx->mbox.app_addr + 0x800),
+        .mbox_len = 0x800,
+        .msg_int_reg = (uintptr_t)(ctx->sysregcb.app_addr + 0x18C),
+        .shared_memory = (uintptr_t)ctx->sys_app.shared_mem,
+    };
+
+    const uint32_t msg_words = IPC_CMD_WORDS(sys_ctl_addr);
+
+    seL4_Word *msg_data = (seL4_Word *)&sys_ctl_addr;
+
+    seL4_MessageInfo_t msg_info = seL4_MessageInfo_new(0, 0, 0, msg_words);
+    for (uint32_t i = 0; i < msg_words; i++) {
+        seL4_SetMR(i, msg_data[i]);
+    }
+
+    ZF_LOGI("Send IPC_CMD_SYS_CTL_ADDR_RESP");
+    seL4_Reply(msg_info);
+
+    return 0;
+}
+
 static void send_inter_app_ep(struct root_env *ctx, seL4_Word sender)
 {
     struct ipc_msg_app_ep ep_msg = {
@@ -465,6 +491,9 @@ static void process_ipc_msg(struct root_env *ctx, seL4_Word sender, seL4_Word ms
         break;
     case IPC_CMD_APP_EP_REQ:
         send_inter_app_ep(ctx, sender);
+        break;
+    case IPC_CMD_SYS_CTL_ADDR_REQ:
+        send_sys_ctl_addr(ctx);
         break;
     default:
         ZF_LOGE("unknown cmd id: (0x%lx) 0x%lx", sender, ipc_cmd_id);

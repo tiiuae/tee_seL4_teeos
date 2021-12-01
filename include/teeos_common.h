@@ -33,6 +33,8 @@ enum ipc_cmd {
     IPC_CMD_CH_ADDR_RESP,
     IPC_CMD_APP_EP_REQ,
     IPC_CMD_APP_EP_RESP,
+    IPC_CMD_SYS_CTL_ADDR_REQ,
+    IPC_CMD_SYS_CTL_ADDR_RESP,
 };
 
 struct ipc_msg_req {
@@ -47,6 +49,15 @@ struct ipc_msg_ch_addr {
     seL4_Word ree2tee_len;      /* Buffer length */
     seL4_Word tee2ree;          /* TEE->REE circular buffer*/
     seL4_Word tee2ree_len;      /* Buffer length */
+};
+
+struct ipc_msg_cys_ctl_addr {
+    seL4_Word cmd_id;
+    seL4_Word reg_base;          /* System controller register base address */
+    seL4_Word mbox_base;         /* mailbox base address */
+    seL4_Word mbox_len;          /* mailbox length (2k) */
+    seL4_Word msg_int_reg;       /* message interrupt register */
+    seL4_Word shared_memory;
 };
 
 struct ipc_msg_app_ep {

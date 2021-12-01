@@ -27,6 +27,46 @@ seL4_CPtr ipc_root_ep = 0;
 
 seL4_CPtr ipc_app_ep1 = 0;
 
+uint32_t *sys_reg_base;
+uint32_t *mbox_base;
+uint32_t *msg_int_reg;
+
+
+static int setup_sys_ctl_io(void)
+{
+    seL4_Word sender_badge = 0;
+    seL4_MessageInfo_t msg_info = { 0 };
+    int error;
+
+    struct ipc_msg_cys_ctl_addr ipc_resp = { 0 };
+    const uint32_t RESP_WORDS = IPC_CMD_WORDS(ipc_resp);
+    seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
+
+    ZF_LOGI("IPC_CMD_SYS_CTL_ADDR_REQ");
+
+    error = ipc_msg_call(IPC_CMD_SYS_CTL_ADDR_REQ,
+                         ipc_root_ep,
+                         RESP_WORDS,
+                         msg_data);
+
+    if (error)
+        return error;
+
+    if (ipc_resp.cmd_id != IPC_CMD_SYS_CTL_ADDR_RESP) {
+        ZF_LOGF("ipc cmd_id: 0x%lx", ipc_resp.cmd_id);
+        return -EPERM;
+    }
+
+    sys_reg_base = (uint32_t *)ipc_resp.reg_base;
+    mbox_base = (uint32_t *)ipc_resp.mbox_base;
+    msg_int_reg = (uint32_t *)ipc_resp.msg_int_reg;
+
+    ZF_LOGI("System controll addresses: Regbase %p  Mbox base %p Msg_int_reg %p ", sys_reg_base, mbox_base, msg_int_reg);
+
+
+    return 0;
+}
+
 static int setup_app_ep(void)
 {
     int error = -1;
@@ -74,6 +114,11 @@ int main(int argc, char **argv)
     if (ipc_root_ep == 0) {
         ZF_LOGF("Invalid root endpoint");
         return -EFAULT;
+    }
+
+    error = setup_sys_ctl_io();
+    if (error) {
+        return error;
     }
 
     ZF_LOGI("ipc_root_ep:    %p", (void *)ipc_root_ep);
