@@ -29,6 +29,7 @@
 
 seL4_CPtr ipc_root_ep = 0;
 seL4_CPtr ipc_app_ep1 = 0;
+void *app_shared_memory;
 
 struct comm_ch {
     struct tee_comm_ch ree2tee;
@@ -86,6 +87,7 @@ static int setup_comm_ch(void)
         ZF_LOGF("ctrl len: %ld", ipc_resp.ctrl_len);
         return -ENOBUFS;
     }
+    app_shared_memory = (void *)ipc_resp.shared_memory;
 
     ch_ctrl = (struct tee_comm_ctrl *)ipc_resp.ctrl;
 

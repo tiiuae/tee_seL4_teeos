@@ -408,6 +408,7 @@ static void send_comm_ch_addr(struct root_env *ctx)
         .ree2tee_len = ctx->comm_ch[COMM_CH_REE2TEE].len,
         .tee2ree = (uintptr_t)ctx->comm_ch[COMM_CH_TEE2REE].app_addr,
         .tee2ree_len = ctx->comm_ch[COMM_CH_REE2TEE].len,
+        .shared_memory = (uintptr_t)ctx->comm_app.shared_mem,
     };
 
     const uint32_t msg_words = IPC_CMD_WORDS(ch_addr);

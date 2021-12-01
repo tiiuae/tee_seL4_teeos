@@ -49,6 +49,7 @@ struct ipc_msg_ch_addr {
     seL4_Word ree2tee_len;      /* Buffer length */
     seL4_Word tee2ree;          /* TEE->REE circular buffer*/
     seL4_Word tee2ree_len;      /* Buffer length */
+    seL4_Word shared_memory;
 };
 
 struct ipc_msg_cys_ctl_addr {
