@@ -91,6 +91,7 @@ target_link_libraries(teeos_comm_app
 # APP2
 add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
+    src/sys_ctl_services.c
 )
 
 target_compile_options(sys_ctl_app

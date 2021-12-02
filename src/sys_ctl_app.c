@@ -19,6 +19,7 @@
 #include <sel4utils/process.h>
 
 #include <teeos_common.h>
+#include <sys_ctl_service.h>
 
 #include <utils/fence.h>
 #include <utils/zf_log.h>
@@ -27,15 +28,12 @@ seL4_CPtr ipc_root_ep = 0;
 
 seL4_CPtr ipc_app_ep1 = 0;
 
-uint32_t *sys_reg_base;
-uint32_t *mbox_base;
-uint32_t *msg_int_reg;
-
 
 static int setup_sys_ctl_io(void)
-{
-    seL4_Word sender_badge = 0;
-    seL4_MessageInfo_t msg_info = { 0 };
+{    
+    uint32_t *sys_reg_base;
+    uint32_t *mbox_base;
+    uint32_t *msg_int_reg;
     int error;
 
     struct ipc_msg_cys_ctl_addr ipc_resp = { 0 };
@@ -62,7 +60,7 @@ static int setup_sys_ctl_io(void)
     msg_int_reg = (uint32_t *)ipc_resp.msg_int_reg;
 
     ZF_LOGI("System controll addresses: Regbase %p  Mbox base %p Msg_int_reg %p ", sys_reg_base, mbox_base, msg_int_reg);
-
+    set_sys_ctl_address(sys_reg_base, mbox_base, msg_int_reg);
 
     return 0;
 }
@@ -97,6 +95,87 @@ static int setup_app_ep(void)
 
     return 0;
 }
+
+
+/*
+ * Demo applications to demonstrate system controller services
+ *
+ */
+void Print_random_number(void)
+{
+    uint8_t random[32];
+
+    if (nonce_service(random))
+    {
+        ZF_LOGI( "Couldn't read Random Number");
+    }
+
+    printf("256 bit random number: \n");
+    for(int i = 0; i < 32; i++)
+    {
+        printf("%2.2x ", random[i]);
+    }
+    printf("\n");
+
+}
+
+
+
+void Device_Serial_Number_Print(void)
+{
+ uint8_t serial_num_buffer[50];
+
+    memset(serial_num_buffer, 0, ARRAY_SIZE(serial_num_buffer));
+    if (0 == get_serial_number(serial_num_buffer))
+    {
+        printf( "Serial Number: \n" ); // move to boards...
+        for (int i = 0; i < (int)ARRAY_SIZE(serial_num_buffer); i++)
+        {
+            printf("%02x", serial_num_buffer[i]);
+        }
+        printf("\n");
+
+    }
+    else
+    {
+        ZF_LOGI( "Couldn't read Serial Number");
+    }
+
+}
+
+void puf_demo(uint8_t opcode)
+{
+    
+    uint8_t random_input[32] = {0};
+    uint8_t response[32] = {0};
+    int i, status;
+    //generate random bytes
+    nonce_service(random_input);
+    for (i = 0; i < 16 ; i++)
+    {
+        printf("%2.2x ", random_input[i]);
+    }
+    
+
+    status = puf_emulation_service(random_input, opcode, response);
+    if (status)
+    {
+        printf("puf service failed %d\n", status);
+        return;
+    }
+
+
+    printf("\npuf response:\n");
+    for (int i = 0; i < 32; i++)
+    {
+        printf("%2.2x", response[i]);
+    }
+    printf("\n");
+
+}
+
+
+
 
 int main(int argc, char **argv)
 {
@@ -147,5 +226,11 @@ int main(int argc, char **argv)
 
     ZF_LOGI("comm app resp (%ld) 0x%lx", msg_len, msg_data);
 
+    /* Demo */
+    Device_Serial_Number_Print();
+    Print_random_number();
+    Print_random_number();
+    puf_demo(1);
+    
     return error;
 }
