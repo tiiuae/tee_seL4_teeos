@@ -186,8 +186,7 @@ int secure_nvm_write(
     uint8_t format, 
     uint8_t snvm_module,
     uint8_t* p_data,
-    uint8_t* p_user_key,
-    uint16_t mb_offset
+    uint8_t* p_user_key
 );
 int secure_nvm_read
 (
@@ -195,8 +194,7 @@ int secure_nvm_read
     uint8_t* p_user_key,
     uint8_t* p_admin,
     uint8_t* p_data,
-    uint16_t data_len,
-    uint16_t mb_offset
+    uint16_t data_len
 );
 
 int puf_emulation_service

@@ -29,6 +29,9 @@
 #include <platsupport/sync/spinlock.h>
 #include <utils/arith.h>
 
+/* In polling mode only one request at time so commmand can be placed in zero offset */
+#define MBOX_OFFSET 0
+
 
 static uint32_t *sys_reg_base;
 static uint32_t *mbox_base;
@@ -198,7 +201,7 @@ int get_serial_number(uint8_t * p_serial_number)
             MSS_SYS_WITHOUT_CMD_DATA,
             p_serial_number,
             (uint16_t)MSS_SYS_SERIAL_NUMBER_RESP_LEN,
-            0,
+            MBOX_OFFSET,
             MSS_SYS_COMMON_RET_OFFSET);
 
 
@@ -220,7 +223,7 @@ int nonce_service(uint8_t * p_nonce)
             MSS_SYS_WITHOUT_CMD_DATA,
             p_nonce,
             (uint16_t)MSS_SYS_NONCE_SERVICE_RESP_LEN,
-            0,
+            MBOX_OFFSET,
             MSS_SYS_COMMON_RET_OFFSET);
 
 
@@ -232,8 +235,7 @@ int secure_nvm_write
     uint8_t format,
     uint8_t snvm_module,
     uint8_t* p_data,
-    uint8_t* p_user_key,
-    uint16_t mb_offset
+    uint8_t* p_user_key
 )
 {
     uint8_t frame[256] = {0x00};
@@ -274,7 +276,7 @@ int secure_nvm_write
                     (uint16_t)MSS_SYS_AUTHENTICATED_TEXT_DATA_LEN,
                     NULL_BUFFER,
                     MSS_SYS_NO_RESPONSE_LEN,
-                    mb_offset,
+                    MBOX_OFFSET,
                     MSS_SYS_COMMON_RET_OFFSET);
 
     }
@@ -294,7 +296,7 @@ int secure_nvm_write
                 (uint16_t)MSS_SYS_NON_AUTHENTICATED_TEXT_DATA_LEN,
                 NULL_BUFFER,
                 MSS_SYS_NO_RESPONSE_LEN,
-                mb_offset,
+                MBOX_OFFSET,
                 MSS_SYS_COMMON_RET_OFFSET);
 
     }
@@ -308,8 +310,7 @@ int secure_nvm_read
     uint8_t* p_user_key,
     uint8_t* p_admin,
     uint8_t* p_data,
-    uint16_t data_len,
-    uint16_t mb_offset
+    uint16_t data_len
 )
 {
     /* Frame the message. */
@@ -346,7 +347,7 @@ int secure_nvm_read
                 (uint16_t)MSS_SYS_SECURE_NVM_READ_DATA_LEN,
                 response,
                 (data_len + 4u),
-                mb_offset,
+                MBOX_OFFSET,
                 (uint16_t)MSS_SYS_SECURE_NVM_READ_RET_OFFSET);
 
 
@@ -381,7 +382,7 @@ int puf_emulation_service
     /* Frame the data required for mailbox */
     mb_format[0] = op_type;
 
-    for (int index = 4u; index < 20u; index++)
+    for (int index = 4; index < 20; index++)
     {
         mb_format[index] = p_challenge[index - 4u];
     }
@@ -392,7 +393,7 @@ int puf_emulation_service
                 (uint16_t)MSS_SYS_PUF_EMULATION_SERVICE_CMD_LEN,
                 p_response,
                 (uint16_t)MSS_SYS_PUF_EMULATION_SERVICE_RESP_LEN,
-                0,
+                MBOX_OFFSET,
                 (uint16_t)MSS_SYS_PUF_EMULATION_RET_OFFSET);
 
     return status;
