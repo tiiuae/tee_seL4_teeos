@@ -25,12 +25,12 @@
 #include <utils/zf_log.h>
 
 seL4_CPtr ipc_root_ep = 0;
-
 seL4_CPtr ipc_app_ep1 = 0;
 
+void *app_shared_memory;
 
 static int setup_sys_ctl_io(void)
-{    
+{
     uint32_t *sys_reg_base;
     uint32_t *mbox_base;
     uint32_t *msg_int_reg;
@@ -58,6 +58,7 @@ static int setup_sys_ctl_io(void)
     sys_reg_base = (uint32_t *)ipc_resp.reg_base;
     mbox_base = (uint32_t *)ipc_resp.mbox_base;
     msg_int_reg = (uint32_t *)ipc_resp.msg_int_reg;
+    app_shared_memory = (void*)ipc_resp.shared_memory;
 
     ZF_LOGI("System controll addresses: Regbase %p  Mbox base %p Msg_int_reg %p ", sys_reg_base, mbox_base, msg_int_reg);
     set_sys_ctl_address(sys_reg_base, mbox_base, msg_int_reg);
@@ -96,9 +97,58 @@ static int setup_app_ep(void)
     return 0;
 }
 
+static void handle_service_requests(void)
+{
+    seL4_MessageInfo_t msg_info = {0};
+    seL4_Word msg_len = 0;
+    seL4_Word sender_badge = 0;
+    seL4_Word msg_data = 0;
+
+    while(1)
+    {
+        ZF_LOGI("Wait msg from comm app...");
+        msg_info = seL4_Recv(ipc_app_ep1, &sender_badge);
+        msg_len = seL4_MessageInfo_get_length(msg_info);
+
+        if (msg_len > 0) {
+            msg_data = seL4_GetMR(0);
+        }
+
+        ZF_LOGI("msg from 0x%lx (%ld) 0x%lx", sender_badge, msg_len, msg_data);
+
+        switch (msg_data)
+        {
+            case IPC_CMD_SYS_CTL_RNG_REQ:
+            {
+                ZF_LOGI("RNG request");
+                memset(app_shared_memory,0,32);
+                int err = nonce_service(app_shared_memory);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_RESP);
+                }
+                else {
+                    ZF_LOGI("RNG service failed");
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+                break;
+            }
+            default:
+                ZF_LOGI("Unsupported message %lu", msg_data);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+                seL4_SetMR(0, 0);
+                seL4_Reply(msg_info);
+                break;
+        }
+        seL4_Yield();
+    }
+}
+
+
 
 /*
- * Demo applications to demonstrate system controller services
+ * Demo functions to demonstrate system controller services
  *
  */
 void Print_random_number(void)
@@ -119,8 +169,6 @@ void Print_random_number(void)
 
 }
 
-
-
 void Device_Serial_Number_Print(void)
 {
  uint8_t serial_num_buffer[50];
@@ -134,7 +182,6 @@ void Device_Serial_Number_Print(void)
             printf("%02x", serial_num_buffer[i]);
         }
         printf("\n");
-
     }
     else
     {
@@ -145,17 +192,17 @@ void Device_Serial_Number_Print(void)
 
 void puf_demo(uint8_t opcode)
 {
-    
+
     uint8_t random_input[32] = {0};
     uint8_t response[32] = {0};
     int i, status;
     //generate random bytes
     nonce_service(random_input);
+    printf("Inuput 16-byte random:\n");
     for (i = 0; i < 16 ; i++)
     {
         printf("%2.2x ", random_input[i]);
     }
-    
 
     status = puf_emulation_service(random_input, opcode, response);
     if (status)
@@ -163,7 +210,6 @@ void puf_demo(uint8_t opcode)
         printf("puf service failed %d\n", status);
         return;
     }
-
 
     printf("\npuf response:\n");
     for (int i = 0; i < 32; i++)
@@ -228,9 +274,7 @@ int main(int argc, char **argv)
 
     /* Demo */
     Device_Serial_Number_Print();
-    Print_random_number();
-    Print_random_number();
-    puf_demo(1);
-    
+
+    handle_service_requests();
     return error;
 }

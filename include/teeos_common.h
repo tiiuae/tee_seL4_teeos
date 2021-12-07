@@ -35,6 +35,9 @@ enum ipc_cmd {
     IPC_CMD_APP_EP_RESP,
     IPC_CMD_SYS_CTL_ADDR_REQ,
     IPC_CMD_SYS_CTL_ADDR_RESP,
+    IPC_CMD_SYS_CTL_RNG_REQ,
+    IPC_CMD_SYS_CTL_RNG_RESP,
+    IPC_CMD_SYS_FAIL = 0x8FFF,
 };
 
 struct ipc_msg_req {

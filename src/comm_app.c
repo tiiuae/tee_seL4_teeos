@@ -19,6 +19,7 @@
 #include <sel4utils/process.h>
 
 #include <teeos_common.h>
+#include <ree_tee_msg.h>
 
 #include <utils/fence.h>
 #include <utils/zf_log.h>
@@ -283,9 +284,64 @@ static int handle_ree_msg(int32_t recv)
 {
     ZF_LOGI("handle_ree_msg: %d", recv);
 
-    while (write_to_circ(&comm.tee2ree, recv, ree_msg_buf)) {
+    enum ree_tee_msg cmd = (enum ree_tee_msg)ree_msg_buf[0];
+
+    switch (cmd)
+    {
+        case REE_TEE_STATUS_REQ:
+        {
+            ZF_LOGI("Status Request from REE ..");
+            struct ree_tee_status_resp resp = {
+                .msg_type = REE_TEE_STATUS_RESP,
+                .length = sizeof(struct ree_tee_status_resp),
+                .status = TEE_OK,
+            };
+            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_status_resp), (void *)&resp );
+        }
+        break;
+        case REE_TEE_RNG_REQ:
+        {
+            struct ree_tee_rng_resp resp = {0};
+            resp.msg_type = REE_TEE_RNG_RESP;
+            resp.length = sizeof(struct ree_tee_rng_resp);
+            /*call to sys app*/
+            seL4_MessageInfo_t msg_info = { 0 };
+            seL4_Word msg_len = 0;
+            seL4_Word msg_data = 0;
+
+            ZF_LOGI("Send msg to sys app...");
+            msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+
+            seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_REQ);
+
+            msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+            ZF_LOGI("Sys app responce received...");
+            msg_len = seL4_MessageInfo_get_length(msg_info);
+            if (msg_len > 0) {
+                msg_data = seL4_GetMR(0);
+            }
+            if (msg_data == IPC_CMD_SYS_CTL_RNG_RESP)
+            {
+                /* copy random number from shared buffer*/
+                memcpy(resp.response, app_shared_memory, RNG_SIZE_IN_BYTES );
+            }
+            else
+            {
+                memset(resp.response, 0xFF, RNG_SIZE_IN_BYTES);
+            }
+            /* write response to REE */
+            ZF_LOGI("Send message to REE, type %d , length %u ", resp.msg_type, resp.length);
+            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_rng_resp), (void *)&resp );
+        }
+        break;
+        default:
+            while (write_to_circ(&comm.tee2ree, recv, ree_msg_buf)) {
         seL4_Yield();
+        }
     }
+
+
 
     return 0;
 }
