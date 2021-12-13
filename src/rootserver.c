@@ -28,10 +28,15 @@
 #include <sel4utils/thread_config.h>
 #include <sel4utils/process_config.h>
 #include <sel4utils/process.h>
+#include <vka/capops.h>
+#include <sel4platsupport/device.h>
+#include "rpmsg_sel4.h"
 
 #include <utils/zf_log.h>
 
 #include <teeos_common.h>
+
+#include "linux/dt-bindings/mailbox/miv-ihc.h"
 
 #define ALLOCATOR_STATIC_POOL_SIZE      ((1 << seL4_PageBits) * 20)
 #define ALLOCATOR_VIRTUAL_POOL_SIZE     ((1 << seL4_PageBits) * 100)
@@ -43,6 +48,7 @@
 #define FDT_PATH_TEE2REE                "/teeos_comm/tee2ree"
 #define FDT_PATH_MBOX                   "/mailbox"
 #define FDT_PATH_SYSREGCB               "/sysregscb"
+#define FDT_PATH_RPMSG                  "/rpmsg"
 
 #define RESUME_PROCESS                  1
 
@@ -50,6 +56,8 @@
 #define SYS_APP_BADGE                   0x81
 #define SHARED_MEM_PAGE_COUNT           8
 
+
+#define IHC_BUF_PAGES                   1
 
 struct fdt_config {
     uintptr_t paddr;
@@ -81,12 +89,16 @@ struct root_env {
     struct fdt_config comm_ch[COMM_CH_COUNT];
     struct fdt_config mbox;
     struct fdt_config sysregcb;
+    struct fdt_config rpmsg_vring;
 
     seL4_CPtr root_ep;
     seL4_CPtr inter_app_ep1;
 
     struct app_env comm_app;
     struct app_env sys_app;
+
+    seL4_CPtr rpmsg_irq_ntf;
+    struct sel4_rpmsg_config rpmsg;
 };
 static struct root_env root_ctx = { 0 };
 
@@ -302,19 +314,21 @@ static int map_from_fdt(struct root_env *ctx, struct fdt_cb_token *token, sel4ut
         return EIO;
     }
 
-    /* share mapped channel to app vspace */
-    page_count = BYTES_TO_SIZE_BITS_PAGES(cfg->len, seL4_PageBits);
-    cfg->app_addr = vspace_share_mem(&ctx->vspace,
-                                    &app_proc->vspace,
-                                    cfg->root_addr,
-                                    page_count,
-                                    seL4_PageBits,
-                                    seL4_AllRights,
-                                    MEM_CACHED);
+    if (app_proc) {
+        /* share mapped channel to app vspace */
+        page_count = BYTES_TO_SIZE_BITS_PAGES(cfg->len, seL4_PageBits);
+        cfg->app_addr = vspace_share_mem(&ctx->vspace,
+                                        &app_proc->vspace,
+                                        cfg->root_addr,
+                                        page_count,
+                                        seL4_PageBits,
+                                        seL4_AllRights,
+                                        MEM_CACHED);
 
-    if (!cfg->app_addr) {
-        ZF_LOGF("vspace_share_mem == NULL");
-        return EFAULT;
+        if (!cfg->app_addr) {
+            ZF_LOGF("vspace_share_mem == NULL");
+            return EFAULT;
+        }
     }
 
     return err;
@@ -524,6 +538,169 @@ static void recv_ipc_loop(struct root_env *ctx)
     }
 }
 
+static int map_rpmsg_vring(struct root_env *ctx)
+{
+    int err = -1;
+    struct fdt_cb_token fdt_token = {
+        .ctx = ctx,
+    };
+
+    int page_count = 0;
+
+    /* rpmsg vring shared memory */
+    fdt_token.fdt_path = FDT_PATH_RPMSG;
+    fdt_token.config = &ctx->rpmsg_vring;
+
+    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
+    if (err) {
+        return err;
+    }
+
+    page_count = BYTES_TO_SIZE_BITS_PAGES(fdt_token.config->len, seL4_PageBits);
+
+    ctx->rpmsg.vring_va = vspace_share_mem(&ctx->vspace,
+                                           &ctx->comm_app.app_proc.vspace,
+                                           fdt_token.config->root_addr,
+                                           page_count,
+                                           seL4_PageBits,
+                                           seL4_AllRights,
+                                           MEM_CACHED);
+
+    if (!ctx->rpmsg.vring_va) {
+        ZF_LOGF("vspace_share_mem == NULL");
+        return EFAULT;
+    }
+
+    ctx->rpmsg.vring_pa = fdt_token.config->paddr;
+
+    ZF_LOGI("rpmsg vring %p - %p, vaddr %p, root %p", (void *)ctx->rpmsg.vring_pa,
+            (void *)(ctx->rpmsg.vring_pa + fdt_token.config->len - 1),
+            ctx->rpmsg.vring_va,
+            (void *)fdt_token.config->root_addr);
+
+    return err;
+}
+
+static int setup_ihc_buf(struct root_env *ctx)
+{
+    void *ihc_page = vspace_new_pages(&ctx->vspace, 
+                                     seL4_AllRights,
+                                     IHC_BUF_PAGES,
+                                     seL4_PageBits);
+    if (!ihc_page) {
+        ZF_LOGF("ERROR ihc_page: out of memory");
+        return -ENOMEM;
+    }
+
+    memset(ihc_page, 0x0, SIZE_BITS_TO_BYTES(seL4_PageBits) * IHC_BUF_PAGES);
+
+    ctx->rpmsg.ihc_buf_pa =
+        sel4utils_get_paddr(&ctx->vspace, ihc_page,
+                            seL4_UntypedObject, seL4_PageBits);
+
+    if (ctx->rpmsg.ihc_buf_pa == 0) {
+        ZF_LOGF("ERROR ihc_buff_pa: invalid address");
+        return -EACCES;
+    }
+
+    /* share ihc memory to comm_app vspace */
+    ctx->rpmsg.ihc_buf_va =
+        vspace_share_mem(&ctx->vspace,
+                         &ctx->comm_app.app_proc.vspace,
+                         ihc_page,
+                         IHC_BUF_PAGES,
+                         seL4_PageBits,
+                         seL4_AllRights, MEM_CACHED);
+
+    if (!ctx->rpmsg.ihc_buf_va) {
+        ZF_LOGF("vspace_share_mem == NULL");
+        return -EFAULT;
+    }
+
+    ZF_LOGI("ihc_buf: %p r[%p] a[%p]", (void *)ctx->rpmsg.ihc_buf_pa,
+            ihc_page, ctx->rpmsg.ihc_buf_va);
+
+
+    /* If this function fails ihc_page is leaked. However the whole seL4
+     * startup should fail in that case.
+     */
+
+    return 0;
+}
+
+static int setup_irq(struct root_env *ctx)
+{
+    seL4_Error err = 0;
+
+    cspacepath_t irq_path = { 0 };
+    cspacepath_t irq_ntf_path = { 0 };
+
+    ps_irq_t irq = {
+        .type = PS_INTERRUPT,
+        .irq.number = IHC_HART4_INT,
+    };
+
+    err = sel4platsupport_copy_irq_cap(&ctx->vka, &ctx->simple, &irq, &irq_path);
+    if (err) {
+        ZF_LOGF("sel4platsupport_copy_irq_cap: %d", err);
+        return err;
+    }
+
+    /* Copy irq to comm app */
+    ctx->rpmsg.ihc_irq = sel4utils_mint_cap_to_process(&ctx->comm_app.app_proc,
+                                                     irq_path,
+                                                     seL4_AllRights,
+                                                     ctx->comm_app.badge);
+
+    if (!ctx->rpmsg.ihc_irq) {
+        ZF_LOGF("ihc_irq == NULL");
+        return EBADSLT;
+    }
+
+    ctx->rpmsg_irq_ntf = vka_alloc_notification_leaky(&ctx->vka);
+    if (!ctx->rpmsg_irq_ntf) {
+        ZF_LOGF("vka_alloc_notification_leaky");
+        err = ENOMEM;
+        goto err_cleanup;
+    }
+
+    vka_cspace_make_path(&ctx->vka, ctx->rpmsg_irq_ntf, &irq_ntf_path);
+
+    /* Pair notification and the irq */
+    err = seL4_IRQHandler_SetNotification(irq_path.capPtr, irq_ntf_path.capPtr);
+    if (err) {
+        ZF_LOGF("seL4_IRQHandler_SetNotification: %d", err);
+        goto err_cleanup;
+    }
+
+    /* Copy notification to comm app */
+    ctx->rpmsg.ihc_ntf = sel4utils_mint_cap_to_process(&ctx->comm_app.app_proc,
+                                                     irq_ntf_path,
+                                                     seL4_AllRights,
+                                                     ctx->comm_app.badge);
+
+    if (!ctx->rpmsg.ihc_ntf) {
+        ZF_LOGF("ihc_ntf == NULL");
+        return EBADSLT;
+    }
+
+    ZF_LOGI("irq %ld init done", irq.irq.number);
+
+    return err;
+
+err_cleanup:
+    /* free allocated cslots */
+    if (irq_path.capPtr) {
+        vka_cspace_free(&ctx->vka, irq_path.capPtr);
+    }
+
+    if (irq_ntf_path.capPtr) {
+        vka_cspace_free(&ctx->vka, irq_ntf_path.capPtr);
+    }
+
+    return err;
+}
+
 int main(void)
 {
     int err = -1;
@@ -622,6 +799,23 @@ int main(void)
     }
 
     err = map_sysctl(ctx);
+    if (err) {
+        return err;
+    }
+
+    err = map_rpmsg_vring(ctx);
+    if (err) {
+        return err;
+    }
+
+    /* Setup HSS IHC buffer */
+    err = setup_ihc_buf(ctx);
+    if (err) {
+        return err;
+    }
+
+    /* Setup HSS IHC irq and notification */
+    err = setup_irq(ctx);
     if (err) {
         return err;
     }

@@ -64,6 +64,12 @@ set(ExtraCompileOptions
 
 # RPMSG
 add_subdirectory(src/rpmsg)
+list(APPEND rpmsg_inc
+    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite"
+    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/rpmsg"
+    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/config"
+    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/rpmsg/platform/microchip/miv"
+)
 
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
@@ -149,6 +155,7 @@ target_compile_options(teeos_root
 target_include_directories(teeos_root
     PRIVATE
         "include"
+        "${rpmsg_inc}"
 )
 
 target_link_libraries(teeos_root
@@ -162,7 +169,9 @@ target_link_libraries(teeos_root
         sel4utils
         sel4platsupport
         sel4muslcsys
-    PRIVATE teeos_Config
+    PRIVATE 
+        teeos_Config
+        rpmsg_lite
 )
 
 # Set this image as the rootserver

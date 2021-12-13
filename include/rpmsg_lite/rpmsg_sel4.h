@@ -22,7 +22,6 @@
 struct sel4_rpmsg_config {
     uintptr_t ihc_buf_pa;
     void *ihc_buf_va;
-    uint32_t ihc_buf_len;
 
     seL4_CPtr ihc_irq;
     seL4_CPtr ihc_ntf;
@@ -31,4 +30,4 @@ struct sel4_rpmsg_config {
     uintptr_t vring_pa;
 };
 
-void rpmsg_sel4(struct sel4_rpmsg_config *config);
+int rpmsg_sel4(struct sel4_rpmsg_config *config);
