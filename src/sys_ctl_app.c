@@ -123,7 +123,6 @@ static void handle_service_requests(void)
                 ZF_LOGI("RNG request");
                 memset(app_shared_memory,0,32);
                 int err = nonce_service(app_shared_memory);
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                 if (!err) {
                     seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_RESP);
                 }
@@ -132,16 +131,103 @@ static void handle_service_requests(void)
                     seL4_SetMR(0, IPC_CMD_SYS_FAIL);
                 }
                 seL4_Reply(msg_info);
-                break;
             }
+            break;
+            case IPC_CMD_SYS_CTL_SNVM_WRITE_REQ:
+            {
+                uint8_t page = (uint8_t)seL4_GetMR(1);
+                uint8_t *usk = (uint8_t*)seL4_GetMR(2);
+                uint8_t *data = (uint8_t*)seL4_GetMR(3);
+                uint16_t length = (uint16_t)seL4_GetMR(4);
+                uint8_t mode = MSS_SYS_SNVM_NON_AUTHEN_TEXT_REQUEST_CMD;
+
+                if (length == 236) {
+                    mode = MSS_SYS_SNVM_AUTHEN_CIPHERTEXT_REQUEST_CMD;
+                    ZF_LOGI("sNVM Secure write");
+                }
+
+                int err = secure_nvm_write(mode, page, data, usk);
+
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_WRITE_RESP);
+                }
+                else {
+                    ZF_LOGI("sNVM write service to page %d failed: %d",page, err);
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+            }
+            break;
+            case IPC_CMD_SYS_CTL_SNVM_READ_REQ:
+            {
+                uint32_t *adminw;
+                uint8_t admin[4];
+                uint8_t page = (uint8_t)seL4_GetMR(1);
+                uint8_t *usk = (uint8_t*)seL4_GetMR(2);
+                uint8_t *data = (uint8_t*)seL4_GetMR(3);
+                uint16_t length = (uint16_t)seL4_GetMR(4);
+
+                if (length == 236) {
+                    ZF_LOGI("sNVM Secure Read");
+                }
+
+                int err = secure_nvm_read(page,usk, admin ,data, length);
+                adminw = (void *)admin;
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_READ_RESP);
+                    ZF_LOGI("Admin was 0x%x", *adminw);
+                }
+                else {
+                    ZF_LOGI("sNVM Read  service from page %d failed: %d",page, err);
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+            }
+            break;
+            case IPC_CMD_SYS_CTL_DEVICEID_REQ:
+            {
+                ZF_LOGI("device id request");
+                memset(app_shared_memory, 0, MSS_SYS_SERIAL_NUMBER_RESP_LEN);
+
+                int err = get_serial_number(app_shared_memory);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_SYS_CTL_DEVICEID_RESP);
+                }
+                else {
+                    ZF_LOGI("device id service failed");
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+            }
+            break;
+            case IPC_CMD_SYS_CTL_PUF_REQ:
+            {
+                ZF_LOGI("Puf request");
+                uint8_t *challenge = (uint8_t*)seL4_GetMR(1);
+                uint8_t opcode = (uint8_t)seL4_GetMR(2);
+                uint8_t *response = (uint8_t*)seL4_GetMR(3);
+                ZF_LOGI("Puf request C=%p O=%d, R=%p", challenge, opcode, response );
+
+                int err = puf_emulation_service(challenge, opcode, response);
+
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_SYS_CTL_PUF_RESP);
+                }
+                else {
+                    ZF_LOGI("puf service failed");
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+            }
+            break;
             default:
                 ZF_LOGI("Unsupported message %lu", msg_data);
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                 seL4_SetMR(0, 0);
                 seL4_Reply(msg_info);
                 break;
         }
-        seL4_Yield();
     }
 }
 

@@ -285,6 +285,9 @@ static int handle_ree_msg(int32_t recv)
     ZF_LOGI("handle_ree_msg: %d", recv);
 
     enum ree_tee_msg cmd = (enum ree_tee_msg)ree_msg_buf[0];
+    seL4_MessageInfo_t msg_info = { 0 };
+    seL4_Word msg_len = 0;
+    seL4_Word msg_data = 0;
 
     switch (cmd)
     {
@@ -305,9 +308,6 @@ static int handle_ree_msg(int32_t recv)
             resp.msg_type = REE_TEE_RNG_RESP;
             resp.length = sizeof(struct ree_tee_rng_resp);
             /*call to sys app*/
-            seL4_MessageInfo_t msg_info = { 0 };
-            seL4_Word msg_len = 0;
-            seL4_Word msg_data = 0;
 
             ZF_LOGI("Send msg to sys app...");
             msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
@@ -333,6 +333,158 @@ static int handle_ree_msg(int32_t recv)
             /* write response to REE */
             ZF_LOGI("Send message to REE, type %d , length %u ", resp.msg_type, resp.length);
             write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_rng_resp), (void *)&resp );
+        }
+        break;
+        case REE_TEE_SNVM_WRITE_REQ:
+        {
+            struct ree_tee_snvm_write_resp resp = {0};
+
+            struct ree_tee_snvm_write_req *req = (struct ree_tee_snvm_write_req *)ree_msg_buf;
+
+            resp.length = sizeof(struct ree_tee_snvm_write_resp);
+            /* copy  message to shared buffer */
+            memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_snvm_write_req));
+            /* Sens msg to sys app */
+            req =  (struct ree_tee_snvm_write_req *)app_shared_memory;
+            ZF_LOGI("Send msg to sys app...");
+            msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
+
+            seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_WRITE_REQ);
+            seL4_SetMR(1, (seL4_Word)req->page_number);
+            seL4_SetMR(2, (seL4_Word)req->user_key);
+            seL4_SetMR(3, (seL4_Word)req->data);
+            seL4_SetMR(4, (seL4_Word)req->length);
+
+            msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+            ZF_LOGI("Sys app responce received...");
+            msg_len = seL4_MessageInfo_get_length(msg_info);
+            if (msg_len > 0) {
+                msg_data = seL4_GetMR(0);
+            }
+            if (msg_data == IPC_CMD_SYS_CTL_SNVM_WRITE_RESP) {
+                resp.msg_type = REE_TEE_SNVM_WRITE_RESP;
+            } else {
+                resp.msg_type = INVALID;
+            }
+
+            ZF_LOGI("Send message to REE, type %d , length %u ", resp.msg_type, resp.length);
+            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_snvm_write_resp), (void *)&resp );
+        }
+        break;
+        case REE_TEE_SNVM_READ_REQ:
+        {
+            struct ree_tee_snvm_read_resp resp = {0};
+
+            uint8_t *response = app_shared_memory + 0x100;
+            struct ree_tee_snvm_read_req *req = (struct ree_tee_snvm_read_req *)ree_msg_buf;
+
+            resp.length = sizeof(struct ree_tee_snvm_read_resp);
+            /* copy  message to shared buffer */
+            memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_snvm_read_req));
+
+            ZF_LOGI("Send msg to sys app...");
+            msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
+
+            seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_READ_REQ);
+            seL4_SetMR(1, (seL4_Word)req->page_number);
+            seL4_SetMR(2, (seL4_Word)req->user_key);
+            seL4_SetMR(3, (seL4_Word)response);
+            seL4_SetMR(4, (seL4_Word)req->length);
+
+            msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+            ZF_LOGI("Sys app responce received...");
+            msg_len = seL4_MessageInfo_get_length(msg_info);
+            if (msg_len > 0) {
+                msg_data = seL4_GetMR(0);
+            }
+
+            if (msg_data == IPC_CMD_SYS_CTL_SNVM_READ_RESP) {
+                resp.msg_type = REE_TEE_SNVM_READ_RESP;
+            } else {
+                resp.msg_type = INVALID;
+            }
+            memcpy(resp.data, response, SNVM_PAGE_LENGTH);
+
+            ZF_LOGI("Send message to REE, type %d , length %u ", resp.msg_type, resp.length);
+            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_snvm_read_resp), (void *)&resp );
+        }
+        break;
+        case REE_TEE_DEVICEID_REQ:
+        {
+            struct ree_tee_deviceid_resp resp = {0};
+            resp.msg_type = REE_TEE_DEVICEID_RESP;
+            resp.length = sizeof(struct ree_tee_deviceid_resp);
+            /*call to sys app*/
+
+            ZF_LOGI("Send msg to sys app...");
+            msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+
+            seL4_SetMR(0, IPC_CMD_SYS_CTL_DEVICEID_REQ);
+
+            msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+            ZF_LOGI("Sys app responce received...");
+            msg_len = seL4_MessageInfo_get_length(msg_info);
+            if (msg_len > 0) {
+                msg_data = seL4_GetMR(0);
+            }
+            if (msg_data == IPC_CMD_SYS_CTL_DEVICEID_RESP)
+            {
+                /* copy device id from shared buffer*/
+                memcpy(resp.response, app_shared_memory, DEVICE_ID_LENGTH);
+            }
+            else
+            {
+                memset(resp.response, 0xFF, DEVICE_ID_LENGTH);
+            }
+            /* write response to REE */
+            ZF_LOGI("Send message to REE, type %d , length %u ", resp.msg_type, resp.length);
+            write_to_circ(&comm.tee2ree, resp.length, (void *)&resp);
+        }
+        break;
+        case REE_TEE_PUF_REQ:
+        {
+            /*
+             * request struct copied @ begin of shared ram
+             * response struct @ 0x100 offset shared ram
+             */
+            struct ree_tee_puf_resp *resp;
+            uint8_t *resp_address = app_shared_memory+0x100;
+            resp = (struct ree_tee_puf_resp *)resp_address;
+            struct ree_tee_puf_req *req = (struct ree_tee_puf_req *)ree_msg_buf;
+            /*clear shared memory*/
+            memset(app_shared_memory, 0xAB, 0x200);
+            resp->msg_type = REE_TEE_DEVICEID_RESP;
+            resp->length = sizeof(struct ree_tee_puf_resp);
+            /* Copy request to shared ram*/
+            memcpy(app_shared_memory, req, sizeof(struct ree_tee_puf_req));
+
+            req = (struct ree_tee_puf_req *)app_shared_memory;
+
+            ZF_LOGI("Send msg to sys app...");
+            msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
+
+            seL4_SetMR(0, IPC_CMD_SYS_CTL_PUF_REQ);
+            seL4_SetMR(1, (seL4_Word)req->request);
+            seL4_SetMR(2, (seL4_Word)req->opcode);
+            seL4_SetMR(3, (seL4_Word)resp->response);
+
+            msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+            ZF_LOGI("Sys app responce received...");
+            msg_len = seL4_MessageInfo_get_length(msg_info);
+            if (msg_len > 0) {
+                msg_data = seL4_GetMR(0);
+            }
+            if (msg_data != IPC_CMD_SYS_CTL_PUF_RESP)
+            {
+                memset(resp->response, 0xFF, PUF_RESPONSE);
+            }
+            /* write response to REE */
+            ZF_LOGI("Send message to REE, type %d , length %u ", resp->msg_type, resp->length);
+            write_to_circ(&comm.tee2ree, resp->length, (void *)resp );
         }
         break;
         default:
