@@ -47,49 +47,21 @@ struct ree_tee_status_resp
     uint32_t status;
 };
 
-struct ree_tee_rng_req
-{
-    int32_t msg_type;
-    uint32_t length;
-};
-
-struct ree_tee_rng_resp
+struct ree_tee_rng_cmd
 {
     int32_t msg_type;
     uint32_t length;
     uint8_t response[RNG_SIZE_IN_BYTES];
 };
 
-struct ree_tee_deviceid_req
-{
-    int32_t msg_type;
-    uint32_t length;
-};
-
-struct ree_tee_deviceid_resp
+struct ree_tee_deviceid_cmd
 {
     int32_t msg_type;
     uint32_t length;
     uint8_t response[DEVICE_ID_LENGTH];
 };
 
-
-struct ree_tee_snvm_read_req
-{
-    int32_t msg_type;
-    uint32_t length;
-    uint8_t user_key[USER_KEY_LENGTH];
-    uint8_t page_number;
-};
-
-struct ree_tee_snvm_read_resp
-{
-    int32_t msg_type;
-    uint32_t length; /* actual data length, 236 for secure and 252 for plain*/
-    uint8_t data[SNVM_PAGE_LENGTH];
-};
-
-struct ree_tee_snvm_write_req
+struct ree_tee_snvm_cmd
 {
     int32_t msg_type;
     uint32_t length; /* actual data length, 236 for secure and 252 for plain*/
@@ -98,23 +70,12 @@ struct ree_tee_snvm_write_req
     uint8_t page_number;
 };
 
-struct ree_tee_snvm_write_resp
-{
-    int32_t msg_type;
-    uint32_t length; 
-};
-
-struct ree_tee_puf_req
+struct ree_tee_puf_cmd
 {
     int32_t msg_type;
     uint32_t length;
     uint8_t request[PUF_CHALLENGE];
+    uint8_t response[PUF_RESPONSE];
     uint8_t opcode;
 };
 
-struct ree_tee_puf_resp
-{
-    int32_t msg_type;
-    uint32_t length;
-    uint8_t response[PUF_RESPONSE];
-};
