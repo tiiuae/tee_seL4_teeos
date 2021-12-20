@@ -257,7 +257,7 @@ int secure_nvm_write
     {
         /* Copy user data */
         for (index = 0u; index < (MSS_SYS_AUTHENTICATED_TEXT_DATA_LEN
-                - MSS_SYS_USER_SECRET_KEY_LEN); index++)
+                - MSS_SYS_USER_SECRET_KEY_LEN - 4); index++)
         {
             *p_frame = p_data[index];
             p_frame++;

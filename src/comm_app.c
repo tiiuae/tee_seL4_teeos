@@ -382,7 +382,8 @@ static int handle_ree_msg(int32_t recv)
             resp.length = sizeof(struct ree_tee_snvm_read_resp);
             /* copy  message to shared buffer */
             memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_snvm_read_req));
-
+            /* req point to shared memory */
+            req = (struct ree_tee_snvm_read_req *)app_shared_memory;
             ZF_LOGI("Send msg to sys app...");
             msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
 
@@ -402,10 +403,10 @@ static int handle_ree_msg(int32_t recv)
 
             if (msg_data == IPC_CMD_SYS_CTL_SNVM_READ_RESP) {
                 resp.msg_type = REE_TEE_SNVM_READ_RESP;
+                memcpy(resp.data, response, req->length);
             } else {
                 resp.msg_type = INVALID;
             }
-            memcpy(resp.data, response, SNVM_PAGE_LENGTH);
 
             ZF_LOGI("Send message to REE, type %d , length %u ", resp.msg_type, resp.length);
             write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_snvm_read_resp), (void *)&resp );
