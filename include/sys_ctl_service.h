@@ -182,6 +182,7 @@ struct sbcctrl_t
 
 int get_serial_number(uint8_t * p_serial_number);
 int nonce_service(uint8_t * p_nonce);
+int read_nvm_parameters(uint8_t *resp);
 int secure_nvm_write(
     uint8_t format, 
     uint8_t snvm_module,

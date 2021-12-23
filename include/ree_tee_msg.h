@@ -10,6 +10,7 @@
 #define DEVICE_ID_LENGTH  16
 #define PUF_CHALLENGE     16
 #define PUF_RESPONSE      32
+#define NVM_PARAM_LENGTH  256
 
 enum ree_tee_msg {
     REE_TEE_STATUS_REQ = 0,
@@ -24,6 +25,8 @@ enum ree_tee_msg {
     REE_TEE_DEVICEID_RESP,
     REE_TEE_PUF_REQ,
     REE_TEE_PUF_RESP,
+    REE_TEE_NVM_PARAM_REQ,
+    REE_TEE_NVM_PARAM_RESP,
     INVALID = -1,
 };
 
@@ -31,8 +34,6 @@ enum tee_status {
     TEE_OK = 1,
     TEE_NOK = -1,
 };
-
-
 
 struct ree_tee_status_req
 {
@@ -52,6 +53,13 @@ struct ree_tee_rng_cmd
     int32_t msg_type;
     uint32_t length;
     uint8_t response[RNG_SIZE_IN_BYTES];
+};
+
+struct ree_tee_nvm_param_cmd
+{
+    int32_t msg_type;
+    uint32_t length;
+    uint8_t response[NVM_PARAM_LENGTH];
 };
 
 struct ree_tee_deviceid_cmd

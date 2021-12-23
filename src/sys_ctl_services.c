@@ -193,7 +193,7 @@ static int execute_ss_polling_mode
 
 int get_serial_number(uint8_t * p_serial_number)
 {
-    uint16_t status = 0;
+    int status = 0;
 
     status = execute_ss_polling_mode(
             (uint8_t)MSS_SYS_SERIAL_NUMBER_REQUEST_CMD,
@@ -210,7 +210,7 @@ int get_serial_number(uint8_t * p_serial_number)
 
 int nonce_service(uint8_t * p_nonce)
 {
-    uint16_t status = -1;
+    int status = -1;
 
     if (p_nonce  == NULL_BUFFER)
     {
@@ -230,6 +230,27 @@ int nonce_service(uint8_t * p_nonce)
     return status;
 }
 
+int read_nvm_parameters(uint8_t *resp)
+{
+    int status = -1;
+
+    if (resp  == NULL_BUFFER)
+    {
+        return -EINVAL;
+    }
+
+    status = execute_ss_polling_mode(
+            (uint8_t)MSS_SYS_READ_ENVM_PARAM_REQUEST_CMD,
+            NULL_BUFFER,
+            MSS_SYS_WITHOUT_CMD_DATA,
+            resp,
+            (uint16_t)MSS_SYS_READ_ENVM_PARAM_RESP_LEN,
+            MBOX_OFFSET,
+            MSS_SYS_COMMON_RET_OFFSET);
+
+    return status;
+}
+
 int secure_nvm_write
 (
     uint8_t format,
@@ -241,7 +262,7 @@ int secure_nvm_write
     uint8_t frame[256] = {0x00};
     uint8_t* p_frame = &frame[0];
     uint16_t index = 0;
-    uint16_t status = -1;
+    int status = -1;
 
     if((!p_data) || (!p_user_key) ||(snvm_module >= 221))
     {
@@ -317,7 +338,7 @@ int secure_nvm_read
     uint8_t frame[16] = {0x00u};
     uint8_t* p_frame = &frame[0];
     uint16_t index = 0u;
-    uint16_t status = -1;
+    int status = -1;
     uint8_t response[256] = {0x00};
 
     if((!p_data) || (!p_admin) || (!p_user_key) || (snvm_module >= 221))
@@ -375,7 +396,7 @@ int puf_emulation_service
     uint8_t* p_response
 )
 {
-    uint16_t status = -1;
+    int status = -1;
     uint8_t mb_format[20] = {0x00};
 
 

@@ -503,6 +503,46 @@ static int handle_ree_msg(int32_t recv)
             write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_puf_cmd), (void *)cmd );
         }
         break;
+        case REE_TEE_NVM_PARAM_REQ:
+        {
+            struct ree_tee_nvm_param_cmd *cmd = (struct ree_tee_nvm_param_cmd *)ree_msg_buf;
+
+            if (recv != sizeof(struct ree_tee_nvm_param_cmd)) {
+                ZF_LOGI("Invalid Message size");
+                cmd->msg_type = INVALID;
+            } else {
+                /*call to sys app*/
+
+                ZF_LOGI("Send msg to sys app...");
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+
+                seL4_SetMR(0, IPC_CMD_SYS_CTL_NVM_PARAM_REQ);
+
+                msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+                ZF_LOGI("Sys app responce received...");
+                msg_len = seL4_MessageInfo_get_length(msg_info);
+                if (msg_len > 0) {
+                    msg_data = seL4_GetMR(0);
+                }
+                if (msg_data == IPC_CMD_SYS_CTL_NVM_PARAM_RESP)
+                {
+                    /* copy nvm parameter data from shared buffer*/
+                    memcpy(cmd->response, app_shared_memory, NVM_PARAM_LENGTH);
+                    cmd->msg_type = REE_TEE_NVM_PARAM_RESP;
+                }
+                else
+                {
+                    memset(cmd->response, 0xFF, NVM_PARAM_LENGTH);
+                    cmd->msg_type = INVALID;
+                }
+                cmd->length = sizeof(struct ree_tee_nvm_param_cmd);
+            }
+            /* write response to REE */
+            ZF_LOGI("Send message to REE, type %d , length %u ", cmd->msg_type, cmd->length);
+            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_nvm_param_cmd), (void *)cmd);
+        }
+        break;
         default:
             while (write_to_circ(&comm.tee2ree, recv, ree_msg_buf)) {
         seL4_Yield();

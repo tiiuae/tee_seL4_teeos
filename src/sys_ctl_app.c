@@ -133,6 +133,21 @@ static void handle_service_requests(void)
                 seL4_Reply(msg_info);
             }
             break;
+            case IPC_CMD_SYS_CTL_NVM_PARAM_REQ:
+            {
+                ZF_LOGI("NVM parameter request");
+                memset(app_shared_memory,0, 256);
+                int err = read_nvm_parameters(app_shared_memory);
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_SYS_CTL_NVM_PARAM_RESP);
+                }
+                else {
+                    ZF_LOGI("Nvm param request failed");
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+            }
+            break;
             case IPC_CMD_SYS_CTL_SNVM_WRITE_REQ:
             {
                 uint8_t page = (uint8_t)seL4_GetMR(1);
