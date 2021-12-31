@@ -55,6 +55,14 @@ static sync_spinlock_t writer_lock;
 #define min(a,b)    MIN(a,b)
 /***************************************************/
 
+#define SET_REE_HDR(hdr, msg, stat, len) {  \
+            hdr->msg_type = msg;            \
+            hdr->status = stat;             \
+            hdr->length = len;              \
+        }
+
+#define REE_HDR_LEN     sizeof(struct ree_tee_hdr)
+
 static char *ree_msg_buf = NULL;
 
 static int setup_comm_ch(void)
@@ -284,62 +292,54 @@ static int handle_ree_msg(int32_t recv)
 {
     ZF_LOGI("handle_ree_msg: %d", recv);
 
-    enum ree_tee_msg msg_cmd = (enum ree_tee_msg)ree_msg_buf[0];
+    struct ree_tee_hdr *hdr = (struct ree_tee_hdr *)ree_msg_buf;
+
     seL4_MessageInfo_t msg_info = { 0 };
     seL4_Word msg_len = 0;
     seL4_Word msg_data = 0;
 
-    switch (msg_cmd)
+    switch (hdr->msg_type)
     {
         case REE_TEE_STATUS_REQ:
         {
+            /* header only, no params for req */
+
             ZF_LOGI("Status Request from REE ..");
-            struct ree_tee_status_resp resp = {
-                .msg_type = REE_TEE_STATUS_RESP,
-                .length = sizeof(struct ree_tee_status_resp),
-                .status = TEE_OK,
-            };
-            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_status_resp), (void *)&resp );
+            SET_REE_HDR(hdr, REE_TEE_STATUS_RESP, TEE_OK, REE_HDR_LEN);
         }
         break;
         case REE_TEE_RNG_REQ:
         {
             struct ree_tee_rng_cmd *cmd = (struct ree_tee_rng_cmd *)ree_msg_buf;
 
-            if (recv != sizeof(struct ree_tee_rng_cmd)) {
+            /* header only, no params for req */
 
-                ZF_LOGI("Invalid Message size");
-                cmd->msg_type = INVALID;
-            } else {
+            /*call to sys app*/
+            ZF_LOGI("Send msg to sys app...");
+            msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-                /*call to sys app*/
-                ZF_LOGI("Send msg to sys app...");
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+            seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_REQ);
 
-                seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_REQ);
+            msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
-                msg_info = seL4_Call(ipc_app_ep1, msg_info);
-
-                ZF_LOGI("Sys app responce received...");
-                msg_len = seL4_MessageInfo_get_length(msg_info);
-                if (msg_len > 0) {
-                    msg_data = seL4_GetMR(0);
-                }
-                if (msg_data == IPC_CMD_SYS_CTL_RNG_RESP)
-                {
-                    /* copy random number from shared buffer*/
-                    memcpy(cmd->response, app_shared_memory, RNG_SIZE_IN_BYTES );
-                    cmd->msg_type = REE_TEE_RNG_RESP;
-                }
-                else
-                {
-                    memset(cmd->response, 0xFF, RNG_SIZE_IN_BYTES);
-                    cmd->msg_type = INVALID;
-                }
+            ZF_LOGI("Sys app responce received...");
+            msg_len = seL4_MessageInfo_get_length(msg_info);
+            if (msg_len > 0) {
+                msg_data = seL4_GetMR(0);
             }
-            /* write response to REE */
-            ZF_LOGI("Send message to REE, type %d  ", cmd->msg_type);
-            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_rng_cmd), (void *)cmd);
+            if (msg_data == IPC_CMD_SYS_CTL_RNG_RESP)
+            {
+                SET_REE_HDR(hdr, REE_TEE_RNG_RESP, TEE_OK,
+                            sizeof(struct ree_tee_rng_cmd));
+
+                /* copy random number from shared buffer*/
+                memcpy(cmd->response, app_shared_memory, RNG_SIZE_IN_BYTES );
+            }
+            else
+            {
+                SET_REE_HDR(hdr, REE_TEE_RNG_RESP, TEE_IPC_CMD_ERR,
+                            REE_HDR_LEN);
+            }
         }
         break;
         case REE_TEE_SNVM_WRITE_REQ:
@@ -349,7 +349,8 @@ static int handle_ree_msg(int32_t recv)
             if (recv != sizeof(struct ree_tee_snvm_cmd)) {
 
                 ZF_LOGI("Invalid Message size");
-                cmd->msg_type = INVALID;
+                SET_REE_HDR(hdr, REE_TEE_SNVM_WRITE_RESP, TEE_INVALID_MSG_SIZE,
+                            REE_HDR_LEN);
             } else {
                 /* copy  message to shared buffer */
                 memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_snvm_cmd));
@@ -362,7 +363,7 @@ static int handle_ree_msg(int32_t recv)
                 seL4_SetMR(1, (seL4_Word)cmd->page_number);
                 seL4_SetMR(2, (seL4_Word)cmd->user_key);
                 seL4_SetMR(3, (seL4_Word)cmd->data);
-                seL4_SetMR(4, (seL4_Word)cmd->length);
+                seL4_SetMR(4, (seL4_Word)cmd->snvm_length);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -372,35 +373,37 @@ static int handle_ree_msg(int32_t recv)
                     msg_data = seL4_GetMR(0);
                 }
                 if (msg_data == IPC_CMD_SYS_CTL_SNVM_WRITE_RESP) {
-                    cmd->msg_type = REE_TEE_SNVM_WRITE_RESP;
+                    /* Return only ok status in header */
+                    SET_REE_HDR(hdr, REE_TEE_SNVM_WRITE_RESP, TEE_OK,
+                                REE_HDR_LEN);
                 } else {
-                    cmd->msg_type = INVALID;
+                    SET_REE_HDR(hdr, REE_TEE_SNVM_WRITE_RESP, TEE_IPC_CMD_ERR,
+                                REE_HDR_LEN);
                 }
             }
-            ZF_LOGI("Send message to REE, type %d , length %u ", cmd->msg_type, cmd->length);
-            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_snvm_cmd), (void *)cmd );
         }
         break;
         case REE_TEE_SNVM_READ_REQ:
         {
             struct ree_tee_snvm_cmd *cmd = (struct ree_tee_snvm_cmd *)ree_msg_buf;
+            struct ree_tee_snvm_cmd *ipc = (struct ree_tee_snvm_cmd *)app_shared_memory;
 
             if (recv != sizeof(struct ree_tee_snvm_cmd)) {
                 ZF_LOGI("Invalid Message size");
-                cmd->msg_type = INVALID;
+                SET_REE_HDR(hdr, REE_TEE_SNVM_READ_RESP, TEE_INVALID_MSG_SIZE,
+                            REE_HDR_LEN);
             } else {
                 /* copy  message to shared buffer */
                 memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_snvm_cmd));
                 /* req point to shared memory */
-                cmd = (struct ree_tee_snvm_cmd *)app_shared_memory;
                 ZF_LOGI("Send msg to sys app...");
                 msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
 
                 seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_READ_REQ);
-                seL4_SetMR(1, (seL4_Word)cmd->page_number);
-                seL4_SetMR(2, (seL4_Word)cmd->user_key);
-                seL4_SetMR(3, (seL4_Word)cmd->data);
-                seL4_SetMR(4, (seL4_Word)cmd->length);
+                seL4_SetMR(1, (seL4_Word)ipc->page_number);
+                seL4_SetMR(2, (seL4_Word)ipc->user_key);
+                seL4_SetMR(3, (seL4_Word)ipc->data);
+                seL4_SetMR(4, (seL4_Word)ipc->snvm_length);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -410,53 +413,53 @@ static int handle_ree_msg(int32_t recv)
                     msg_data = seL4_GetMR(0);
                 }
                 if (msg_data == IPC_CMD_SYS_CTL_SNVM_READ_RESP) {
-                    cmd->msg_type = REE_TEE_SNVM_READ_RESP;
+                    SET_REE_HDR(hdr, REE_TEE_SNVM_READ_RESP, TEE_OK,
+                                sizeof(struct ree_tee_snvm_cmd));
+
+                    /* Copy read data from IPC msg to REE message */
+                    memcpy(cmd->data, ipc->data, sizeof(ipc->data));
+                    /* Clear key from REE message before returning */
+                    memset(cmd->user_key, 0xFF, sizeof(cmd->user_key));
                 } else {
-                    cmd->msg_type = INVALID;
+                    SET_REE_HDR(hdr, REE_TEE_SNVM_READ_RESP, TEE_IPC_CMD_ERR,
+                                REE_HDR_LEN);
                 }
             }
-            ZF_LOGI("Send message to REE, type %d , length %u ", cmd->msg_type, cmd->length);
-            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_snvm_cmd), (void *)cmd );
         }
         break;
         case REE_TEE_DEVICEID_REQ:
         {
             struct ree_tee_deviceid_cmd *cmd = (struct ree_tee_deviceid_cmd *)ree_msg_buf;
 
-            if (recv != sizeof(struct ree_tee_deviceid_cmd)) {
-                ZF_LOGI("Invalid Message size");
-                cmd->msg_type = INVALID;
-            } else {
-                /*call to sys app*/
+            /* header only, no params for req */
 
-                ZF_LOGI("Send msg to sys app...");
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+            /*call to sys app*/
 
-                seL4_SetMR(0, IPC_CMD_SYS_CTL_DEVICEID_REQ);
+            ZF_LOGI("Send msg to sys app...");
+            msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-                msg_info = seL4_Call(ipc_app_ep1, msg_info);
+            seL4_SetMR(0, IPC_CMD_SYS_CTL_DEVICEID_REQ);
 
-                ZF_LOGI("Sys app responce received...");
-                msg_len = seL4_MessageInfo_get_length(msg_info);
-                if (msg_len > 0) {
-                    msg_data = seL4_GetMR(0);
-                }
-                if (msg_data == IPC_CMD_SYS_CTL_DEVICEID_RESP)
-                {
-                    /* copy device id from shared buffer*/
-                    memcpy(cmd->response, app_shared_memory, DEVICE_ID_LENGTH);
-                    cmd->msg_type = REE_TEE_DEVICEID_RESP;
-                }
-                else
-                {
-                    memset(cmd->response, 0xFF, DEVICE_ID_LENGTH);
-                    cmd->msg_type = INVALID;
-                }
-                cmd->length = sizeof(struct ree_tee_deviceid_cmd);
+            msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+            ZF_LOGI("Sys app responce received...");
+            msg_len = seL4_MessageInfo_get_length(msg_info);
+            if (msg_len > 0) {
+                msg_data = seL4_GetMR(0);
             }
-            /* write response to REE */
-            ZF_LOGI("Send message to REE, type %d , length %u ", cmd->msg_type, cmd->length);
-            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_deviceid_cmd), (void *)cmd);
+            if (msg_data == IPC_CMD_SYS_CTL_DEVICEID_RESP)
+            {
+                SET_REE_HDR(hdr, REE_TEE_DEVICEID_RESP, TEE_OK,
+                            sizeof(struct ree_tee_deviceid_cmd));
+
+                /* copy device id from shared buffer*/
+                memcpy(cmd->response, app_shared_memory, DEVICE_ID_LENGTH);
+            }
+            else
+            {
+                SET_REE_HDR(hdr, REE_TEE_DEVICEID_RESP, TEE_IPC_CMD_ERR,
+                            REE_HDR_LEN);
+            }
         }
         break;
         case REE_TEE_PUF_REQ:
@@ -466,23 +469,23 @@ static int handle_ree_msg(int32_t recv)
              * response struct @ 0x100 offset shared ram
              */
             struct ree_tee_puf_cmd *cmd = (struct ree_tee_puf_cmd *)ree_msg_buf;
+            struct ree_tee_puf_cmd *ipc = (struct ree_tee_puf_cmd *)app_shared_memory;
 
             if (recv != sizeof(struct ree_tee_puf_cmd)) {
                 ZF_LOGI("Invalid Message size");
-                cmd->msg_type = INVALID;
+                SET_REE_HDR(hdr, REE_TEE_PUF_RESP, TEE_INVALID_MSG_SIZE,
+                            REE_HDR_LEN);
             } else {
                 /* Copy cmd to shared ram*/
                 memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_puf_cmd));
-
-                cmd = (struct ree_tee_puf_cmd *)app_shared_memory;
 
                 ZF_LOGI("Send msg to sys app...");
                 msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
 
                 seL4_SetMR(0, IPC_CMD_SYS_CTL_PUF_REQ);
-                seL4_SetMR(1, (seL4_Word)cmd->request);
-                seL4_SetMR(2, (seL4_Word)cmd->opcode);
-                seL4_SetMR(3, (seL4_Word)cmd->response);
+                seL4_SetMR(1, (seL4_Word)ipc->request);
+                seL4_SetMR(2, (seL4_Word)ipc->opcode);
+                seL4_SetMR(3, (seL4_Word)ipc->response);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -491,25 +494,33 @@ static int handle_ree_msg(int32_t recv)
                 if (msg_len > 0) {
                     msg_data = seL4_GetMR(0);
                 }
-                cmd->msg_type = REE_TEE_DEVICEID_RESP;
-                if (msg_data != IPC_CMD_SYS_CTL_PUF_RESP)
-                {
-                    memset(cmd->response, 0xFF, PUF_RESPONSE);
-                    cmd->msg_type = INVALID;
-                }
 
+                if (msg_data == IPC_CMD_SYS_CTL_PUF_RESP)
+                {
+                    SET_REE_HDR(hdr, REE_TEE_PUF_RESP, TEE_OK,
+                                sizeof(struct ree_tee_puf_cmd));
+
+                    /* copy device id from shared buffer*/
+                    memcpy(cmd->response, ipc->response, sizeof(ipc->response));
+                }
+                else
+                {
+                    SET_REE_HDR(hdr, REE_TEE_PUF_RESP, TEE_IPC_CMD_ERR,
+                                REE_HDR_LEN);
+                }
             }
-            /* write response to REE */
-            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_puf_cmd), (void *)cmd );
         }
         break;
         case REE_TEE_NVM_PARAM_REQ:
         {
             struct ree_tee_nvm_param_cmd *cmd = (struct ree_tee_nvm_param_cmd *)ree_msg_buf;
 
+            /* header only, no params for req */
+
             if (recv != sizeof(struct ree_tee_nvm_param_cmd)) {
                 ZF_LOGI("Invalid Message size");
-                cmd->msg_type = INVALID;
+                SET_REE_HDR(hdr, REE_TEE_NVM_PARAM_RESP, TEE_INVALID_MSG_SIZE,
+                            REE_HDR_LEN);
             } else {
                 /*call to sys app*/
 
@@ -527,29 +538,30 @@ static int handle_ree_msg(int32_t recv)
                 }
                 if (msg_data == IPC_CMD_SYS_CTL_NVM_PARAM_RESP)
                 {
+                    SET_REE_HDR(hdr, REE_TEE_NVM_PARAM_RESP, TEE_OK,
+                                sizeof(struct ree_tee_nvm_param_cmd));
+
                     /* copy nvm parameter data from shared buffer*/
                     memcpy(cmd->response, app_shared_memory, NVM_PARAM_LENGTH);
-                    cmd->msg_type = REE_TEE_NVM_PARAM_RESP;
                 }
                 else
                 {
-                    memset(cmd->response, 0xFF, NVM_PARAM_LENGTH);
-                    cmd->msg_type = INVALID;
+                    SET_REE_HDR(hdr, REE_TEE_NVM_PARAM_RESP, TEE_IPC_CMD_ERR,
+                                REE_HDR_LEN);
                 }
-                cmd->length = sizeof(struct ree_tee_nvm_param_cmd);
             }
-            /* write response to REE */
-            ZF_LOGI("Send message to REE, type %d , length %u ", cmd->msg_type, cmd->length);
-            write_to_circ(&comm.tee2ree, sizeof(struct ree_tee_nvm_param_cmd), (void *)cmd);
         }
         break;
         default:
-            while (write_to_circ(&comm.tee2ree, recv, ree_msg_buf)) {
-        seL4_Yield();
-        }
+            /* leave original msg type to response */
+            hdr->status = TEE_UNKNOWN_MSG;
+            hdr->length = REE_HDR_LEN;
     }
 
+    ZF_LOGI("Send message to REE, type %d , status %d , length %u ",
+            hdr->msg_type, hdr->status, hdr->length);
 
+    write_to_circ(&comm.tee2ree, hdr->length, (void *)hdr);
 
     return 0;
 }
@@ -576,7 +588,13 @@ static int wait_ree_msg()
 
         res = read_from_circ(&comm.ree2tee, comm.ree2tee.buf_len, ree_msg_buf,
                              &recv);
-        if (res || recv < 1) {
+        if (res) {
+            continue;
+        }
+
+        /* Each message must contain at least header */
+        if (recv < (int32_t)sizeof(struct ree_tee_hdr)) {
+            ZF_LOGE("ERROR: package size %d", recv);
             continue;
         }
 
