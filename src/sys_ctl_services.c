@@ -251,6 +251,38 @@ int read_nvm_parameters(uint8_t *resp)
     return status;
 }
 
+int digital_signature_service
+(
+    uint8_t* p_hash,
+    uint8_t format,
+    uint8_t* p_response
+)
+{
+    int status = -1;
+    uint16_t resp_length = 0;
+
+    if (format == MSS_SYS_DIGITAL_SIGNATURE_RAW_FORMAT_REQUEST_CMD) {
+        resp_length = MSS_SYS_DIGITAL_SIGNATURE_RAW_FORMAT_RESP_SIZE;
+    } else if (format == MSS_SYS_DIGITAL_SIGNATURE_DER_FORMAT_REQUEST_CMD) {
+        resp_length = MSS_SYS_DIGITAL_SIGNATURE_DER_FORMAT_RESP_SIZE;
+    } else {
+        return -EINVAL;
+    }
+
+
+    status = execute_ss_polling_mode
+                (format,
+                p_hash,
+                (uint16_t)MSS_SYS_DIGITAL_SIGNATURE_HASH_DATA_LEN,
+                p_response,
+                resp_length,
+                MBOX_OFFSET,
+                (uint16_t)MSS_SYS_DIGITAL_SIG_RET_OFFSET);
+
+    return status;
+}
+
+
 int secure_nvm_write
 (
     uint8_t format,

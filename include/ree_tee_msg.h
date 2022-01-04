@@ -11,6 +11,10 @@
 #define PUF_CHALLENGE     16
 #define PUF_RESPONSE      32
 #define NVM_PARAM_LENGTH  256
+#define HASH_LENGTH       48
+#define SIGN_RESP_LENGTH  104
+#define RAW_FORMAT        0x19
+#define DER_FORMAT        0x1A
 
 enum ree_tee_msg {
     REE_TEE_STATUS_REQ = 0,
@@ -27,6 +31,8 @@ enum ree_tee_msg {
     REE_TEE_PUF_RESP,
     REE_TEE_NVM_PARAM_REQ,
     REE_TEE_NVM_PARAM_RESP,
+    REE_TEE_SIGN_REQ,
+    REE_TEE_SIGN_RESP,
     INVALID = -1,
 };
 
@@ -88,5 +94,13 @@ struct ree_tee_puf_cmd
     uint8_t request[PUF_CHALLENGE];
     uint8_t response[PUF_RESPONSE];
     uint8_t opcode;
+};
+
+struct ree_tee_sign_cmd
+{
+    struct ree_tee_hdr hdr;
+    uint8_t hash[HASH_LENGTH];
+    uint8_t response[SIGN_RESP_LENGTH];
+    uint8_t format;
 };
 

@@ -237,6 +237,27 @@ static void handle_service_requests(void)
                 seL4_Reply(msg_info);
             }
             break;
+            case IPC_CMD_SYS_CTL_SIGN_REQ:
+            {
+                ZF_LOGI("Sign request");
+                uint8_t *hash = (uint8_t*)seL4_GetMR(1);
+                uint8_t format = (uint8_t)seL4_GetMR(2);
+                uint8_t *response = (uint8_t*)seL4_GetMR(3);
+                ZF_LOGI("Sign request hash=%p format=%d, R=%p", hash, format, response );
+
+                int err = digital_signature_service(hash, format, response);
+
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_SYS_CTL_SIGN_RESP);
+                }
+                else {
+                    ZF_LOGI("puf service failed");
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+            }
+            break;
             default:
                 ZF_LOGI("Unsupported message %lu", msg_data);
                 seL4_SetMR(0, 0);

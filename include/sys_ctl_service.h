@@ -205,4 +205,11 @@ int puf_emulation_service
     uint8_t* p_response /* 256bit response */
 );
 
+int digital_signature_service
+(
+    uint8_t* p_hash,
+    uint8_t format,
+    uint8_t* p_response /* 96 or 104 byte */
+);
+
 void set_sys_ctl_address(uint32_t*, uint32_t*, uint32_t*);

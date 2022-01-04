@@ -465,8 +465,7 @@ static int handle_ree_msg(int32_t recv)
         case REE_TEE_PUF_REQ:
         {
             /*
-             * request struct copied @ begin of shared ram
-             * response struct @ 0x100 offset shared ram
+             * response struct @  shared ram
              */
             struct ree_tee_puf_cmd *cmd = (struct ree_tee_puf_cmd *)ree_msg_buf;
             struct ree_tee_puf_cmd *ipc = (struct ree_tee_puf_cmd *)app_shared_memory;
@@ -500,7 +499,55 @@ static int handle_ree_msg(int32_t recv)
                     SET_REE_HDR(hdr, REE_TEE_PUF_RESP, TEE_OK,
                                 sizeof(struct ree_tee_puf_cmd));
 
-                    /* copy device id from shared buffer*/
+                    /* copy puf response from shared buffer*/
+                    memcpy(cmd->response, ipc->response, sizeof(ipc->response));
+                }
+                else
+                {
+                    SET_REE_HDR(hdr, REE_TEE_PUF_RESP, TEE_IPC_CMD_ERR,
+                                REE_HDR_LEN);
+                }
+            }
+        }
+        break;
+        case REE_TEE_SIGN_REQ:
+        {
+            /*
+             * request struct copied @ begin of shared ram
+             */
+            struct ree_tee_sign_cmd *cmd = (struct ree_tee_sign_cmd *)ree_msg_buf;
+            struct ree_tee_sign_cmd *ipc = (struct ree_tee_sign_cmd *)app_shared_memory;
+
+            if (recv != sizeof(struct ree_tee_sign_cmd)) {
+                ZF_LOGI("Invalid Message size");
+                SET_REE_HDR(hdr, REE_TEE_PUF_RESP, TEE_INVALID_MSG_SIZE,
+                            REE_HDR_LEN);
+            } else {
+                /* Copy cmd to shared ram*/
+                memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_sign_cmd));
+
+                ZF_LOGI("Send msg to sys app...");
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
+
+                seL4_SetMR(0, IPC_CMD_SYS_CTL_SIGN_REQ);
+                seL4_SetMR(1, (seL4_Word)ipc->hash);
+                seL4_SetMR(2, (seL4_Word)ipc->format);
+                seL4_SetMR(3, (seL4_Word)ipc->response);
+
+                msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+                ZF_LOGI("Sys app responce received...");
+                msg_len = seL4_MessageInfo_get_length(msg_info);
+                if (msg_len > 0) {
+                    msg_data = seL4_GetMR(0);
+                }
+
+                if (msg_data == IPC_CMD_SYS_CTL_SIGN_RESP)
+                {
+                    SET_REE_HDR(hdr, REE_TEE_SIGN_RESP, TEE_OK,
+                                sizeof(struct ree_tee_sign_cmd));
+
+                    /* copy signature from shared buffer*/
                     memcpy(cmd->response, ipc->response, sizeof(ipc->response));
                 }
                 else
