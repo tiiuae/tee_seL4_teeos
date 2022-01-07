@@ -74,6 +74,7 @@ list(APPEND rpmsg_inc
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
     src/comm_app.c
+    src/key_service.c
 )
 
 target_compile_options(teeos_comm_app

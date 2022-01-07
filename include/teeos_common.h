@@ -56,6 +56,11 @@ enum ipc_cmd {
     IPC_CMD_SYS_CTL_NVM_PARAM_RESP,
     IPC_CMD_SYS_CTL_SIGN_REQ,
     IPC_CMD_SYS_CTL_SIGN_RESP,
+    IPC_CMD_KEY_CREATE_REQ,
+    IPC_CMD_KEY_CREATE_RESP,
+    IPC_CMD_KEY_PUBEXT_REQ,
+    IPC_CMD_KEY_PUBEXT_RESP,
+
     IPC_CMD_SYS_FAIL = 0x8FFF,
 };
 
@@ -152,3 +157,5 @@ static inline void app_hexdump(void* mem, size_t len)
     }
     printf("\n");
 }
+
+

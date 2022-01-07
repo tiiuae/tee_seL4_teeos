@@ -33,6 +33,10 @@ enum ree_tee_msg {
     REE_TEE_NVM_PARAM_RESP,
     REE_TEE_SIGN_REQ,
     REE_TEE_SIGN_RESP,
+    REE_TEE_GEN_KEY_REQ,
+    REE_TEE_GEN_KEY_RESP,
+    REE_TEE_EXT_PUBKEY_REQ,
+    REE_TEE_EXT_PUBKEY_RESP,
     INVALID = -1,
 };
 
@@ -42,6 +46,11 @@ enum tee_status {
     TEE_INVALID_MSG_SIZE,
     TEE_IPC_CMD_ERR,
     TEE_OK = 1,
+};
+
+enum key_format {
+    KEY_UNKNOWN = -10,
+    KEY_RSA = 1,
 };
 
 struct ree_tee_hdr
@@ -104,3 +113,50 @@ struct ree_tee_sign_cmd
     uint8_t format;
 };
 
+struct ree_tee_key_info
+{
+    char name[24];
+    uint8_t guid[32];
+    uint32_t client_id;
+    uint32_t key_nbits;
+    uint32_t format;
+    uint64_t counter;
+    uint32_t pubkey_length;
+    uint32_t privkey_length;
+};
+
+
+struct ree_tee_key_data_storage
+{
+    uint32_t storage_size;
+    struct ree_tee_key_info key_info;
+    uint8_t keys[0];
+};
+
+struct ree_tee_key_req_cmd
+{
+    struct ree_tee_hdr hdr;
+    struct ree_tee_key_info key_req_info;
+};
+
+struct ree_tee_key_resp_cmd
+{
+    struct ree_tee_hdr hdr;
+    struct ree_tee_key_info key_data_info;
+    struct ree_tee_key_data_storage key_data;
+};
+
+struct ree_tee_pub_key_req_cmd
+{
+    struct ree_tee_hdr hdr;
+    uint32_t client_id;
+    uint8_t guid[32];
+    uint8_t crypted_key_data[0];
+};
+
+struct ree_tee_pub_key_resp_cmd
+{
+    struct ree_tee_hdr hdr;
+    struct ree_tee_key_info key_info;
+    uint8_t pubkey[0];
+};

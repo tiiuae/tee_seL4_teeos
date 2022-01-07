@@ -20,6 +20,7 @@
 
 #include <teeos_common.h>
 #include <ree_tee_msg.h>
+#include <key_service.h>
 
 #include <utils/fence.h>
 #include <utils/zf_log.h>
@@ -45,6 +46,7 @@ static struct comm_ch comm = {0};
 
 static sync_spinlock_t reader_lock;
 static sync_spinlock_t writer_lock;
+static uint32_t max_message_size;
 
 #define SET_REE_HDR(hdr, msg, stat, len) {  \
             hdr->msg_type = msg;            \
@@ -530,6 +532,87 @@ static int handle_ree_msg(int32_t recv)
             }
         }
         break;
+        case REE_TEE_GEN_KEY_REQ:
+        {
+            struct ree_tee_key_req_cmd *cmd = (struct ree_tee_key_req_cmd *)ree_msg_buf;
+            /* set key data just after message struct */
+            uint8_t  *output = (uint8_t*)ree_msg_buf + sizeof(struct ree_tee_key_req_cmd);
+            struct ree_tee_key_resp_cmd *resp = (struct ree_tee_key_resp_cmd*)output;
+            hdr = (struct ree_tee_hdr *)output;
+
+            uint32_t max_keyblob_size = (max_message_size
+             - sizeof(struct ree_tee_key_req_cmd)
+             - sizeof(struct ree_tee_key_resp_cmd));
+
+
+            if (recv != sizeof(struct ree_tee_key_req_cmd)) {
+                ZF_LOGI("Invalid Message size");
+                SET_REE_HDR(hdr, REE_TEE_GEN_KEY_RESP, TEE_INVALID_MSG_SIZE,
+                            REE_HDR_LEN);
+            } else {
+                ZF_LOGI("Generate certificate file...%s", cmd->key_req_info.name);
+                /* use key service to generate keys*/
+                int err = generate_key_pair(&cmd->key_req_info, &resp->key_data, max_keyblob_size);
+                if (err) {
+                    SET_REE_HDR(hdr, REE_TEE_GEN_KEY_RESP, TEE_IPC_CMD_ERR,
+                                    REE_HDR_LEN);
+
+                } else {
+                    int message_length = sizeof(struct ree_tee_key_resp_cmd)
+                     + resp->key_data.key_info.privkey_length
+                     + resp->key_data.key_info.pubkey_length ;
+
+                    hdr->length = message_length;
+                    hdr->msg_type = REE_TEE_GEN_KEY_RESP;
+                    hdr->status = TEE_OK;
+
+                    ZF_LOGI("Message Length = %d", message_length);
+                    /* Populate response key_info from storage data*/
+                    memcpy(&resp->key_data_info, &resp->key_data.key_info, sizeof(struct ree_tee_key_info));
+
+                    ZF_LOGI("Pub Key length = %d, priv key length = %d", resp->key_data_info.pubkey_length, resp->key_data_info.privkey_length);
+                }
+            }
+        }
+        break;
+        case REE_TEE_EXT_PUBKEY_REQ:
+        {
+            struct ree_tee_pub_key_req_cmd *cmd = (struct ree_tee_pub_key_req_cmd *)ree_msg_buf;
+            /* set key data just after message struct */
+            uint8_t  *output = (uint8_t*)ree_msg_buf + recv;
+            struct ree_tee_pub_key_resp_cmd *resp = (struct ree_tee_pub_key_resp_cmd*)output;
+            /* Move header to point response struct */
+            hdr = (struct ree_tee_hdr *)output;
+
+            uint32_t max_keyblob_size = (max_message_size
+             - recv - sizeof(struct ree_tee_pub_key_resp_cmd));
+
+            if (recv != (int32_t)cmd->hdr.length) {
+                ZF_LOGI("Invalid Message size");
+                SET_REE_HDR(hdr, REE_TEE_EXT_PUBKEY_RESP, TEE_INVALID_MSG_SIZE,
+                            REE_HDR_LEN);
+            } else {
+                ZF_LOGI("Extract Public key..");
+                /* use key service to generate keys*/
+                int err =  extract_public_key(cmd->crypted_key_data, cmd->guid, cmd->client_id, &resp->key_info, resp->pubkey, max_keyblob_size);
+                ZF_LOGI("Extract Public key..done..length=%d", resp->key_info.pubkey_length);
+                if (err) {
+                    SET_REE_HDR(hdr, REE_TEE_EXT_PUBKEY_RESP, TEE_IPC_CMD_ERR,
+                                    REE_HDR_LEN);
+
+                } else {
+                    int message_length = sizeof(struct ree_tee_pub_key_resp_cmd)
+                     + resp->key_info.pubkey_length ;
+
+                    hdr->length = message_length;
+                    hdr->msg_type = REE_TEE_EXT_PUBKEY_RESP;
+                    hdr->status = TEE_OK;
+
+                    ZF_LOGI("Message Length = %d, Public key lengths =%d", message_length, resp->key_info.pubkey_length );
+                }
+            }
+        }
+        break;
         default:
             /* leave original msg type to response */
             hdr->status = TEE_UNKNOWN_MSG;
@@ -554,13 +637,15 @@ static int wait_ree_msg()
     sync_spinlock_init(&writer_lock);
 
     /* Intermediate buffer for storing REE msg */
+
     ree_msg_buf = malloc(comm.ree2tee.buf_len);
     if (!ree_msg_buf) {
         ZF_LOGF("ree_recv_buf == NULL");
         return -ENOMEM;
     }
-
+    ZF_LOGI("Buffer allocated size = %d", comm.ree2tee.buf_len);
     ZF_LOGI("waiting REE msg...");
+    max_message_size = comm.ree2tee.buf_len;
     while (1) {
         seL4_Yield();
 
