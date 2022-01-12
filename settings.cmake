@@ -58,3 +58,5 @@ ApplyCommonReleaseVerificationSettings(${RELEASE} ${VERIFICATION})
 
 set(KernelNumDomains 1 CACHE STRING "" FORCE)
 set(KernelMaxNumNodes 1 CACHE STRING "" FORCE)
+
+set(KernelHssIhcSyscall ON CACHE BOOL "")

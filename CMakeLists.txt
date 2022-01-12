@@ -35,6 +35,9 @@ config_string(
     "System Control app name"
     DEFAULT "sys_ctl_app")
 
+# rdtime-counter frequency
+config_set(HwTimerFreq HW_TIMER_FREQ 1000000)
+
 add_config_library(teeos "${configure_string}")
 
 find_package(musllibc REQUIRED)
@@ -58,6 +61,9 @@ set(ExtraCompileOptions
     -Wextra
     -g
 )
+
+# RPMSG
+add_subdirectory(src/rpmsg)
 
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
