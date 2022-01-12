@@ -48,6 +48,8 @@
 
 #define TEE_COMM_APP_BADGE              0x80
 #define SYS_APP_BADGE                   0x81
+#define SHARED_MEM_PAGE_COUNT           8
+
 
 struct fdt_config {
     uintptr_t paddr;
@@ -212,7 +214,7 @@ static int create_shared_buffer(struct root_env *ctx, struct app_env *app_1, str
 
     void *root_vaddr = NULL;
 
-    root_vaddr = vspace_new_pages(&ctx->vspace, seL4_AllRights, 1, seL4_PageBits);
+    root_vaddr = vspace_new_pages(&ctx->vspace, seL4_AllRights, SHARED_MEM_PAGE_COUNT, seL4_PageBits);
 
     if (!root_vaddr)
     {
@@ -221,8 +223,8 @@ static int create_shared_buffer(struct root_env *ctx, struct app_env *app_1, str
     }
 
     /* share memory to applications */
-    app_1->shared_mem = vspace_share_mem(&ctx->vspace, &app_1->app_proc.vspace, root_vaddr, 1, PAGE_BITS_4K, seL4_AllRights, 1 );
-    app_2->shared_mem = vspace_share_mem(&ctx->vspace, &app_2->app_proc.vspace, root_vaddr, 1, PAGE_BITS_4K, seL4_AllRights, 1 );
+    app_1->shared_mem = vspace_share_mem(&ctx->vspace, &app_1->app_proc.vspace, root_vaddr, SHARED_MEM_PAGE_COUNT, PAGE_BITS_4K, seL4_AllRights, 1 );
+    app_2->shared_mem = vspace_share_mem(&ctx->vspace, &app_2->app_proc.vspace, root_vaddr, SHARED_MEM_PAGE_COUNT, PAGE_BITS_4K, seL4_AllRights, 1 );
 
     if ((!app_1->shared_mem)||(!app_2->shared_mem))
     {
