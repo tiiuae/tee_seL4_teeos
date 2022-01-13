@@ -74,7 +74,6 @@ list(APPEND rpmsg_inc
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
     src/comm_app.c
-    src/key_service.c
 )
 
 target_compile_options(teeos_comm_app
@@ -108,6 +107,7 @@ target_link_libraries(teeos_comm_app
 add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
     src/sys_ctl_services.c
+    src/key_service.c
 )
 
 target_compile_options(sys_ctl_app

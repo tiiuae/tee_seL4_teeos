@@ -35,9 +35,10 @@ extern void *app_shared_memory;
 
 
 
-static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint8_t *guid )
+static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint32_t length, uint8_t *guid )
 {
     guid = guid;
+    length = length;
     return (struct ree_tee_key_data_storage *)key_data;
 }
 
@@ -46,14 +47,14 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
 {
 
 
-    ZF_LOGI("Generate certificate file, format = %d", key_req->format);
+    ZF_LOGI("Generate keypair file, format = %d", key_req->format);
     switch (key_req->format)
     {
         case KEY_RSA:
         {
-            seL4_MessageInfo_t msg_info = { 0 };
-            seL4_Word msg_len = 0;
-            seL4_Word msg_data = 0;
+           /* generate Guid from system controller*/
+            nonce_service(key_req->guid);
+
             /* Use hard coded key for now */
             payload->key_info.pubkey_length = sizeof(public_key_pem);
             payload->key_info.privkey_length = sizeof(cert_pem);
@@ -74,26 +75,12 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             memcpy(&payload->keys[payload->key_info.pubkey_length], cert_pem, payload->key_info.privkey_length);
             payload->key_info.key_nbits = key_req->key_nbits;
 
+            /* copy uid */
+            memcpy(payload->key_info.guid, key_req->guid, 32);
 
-
-            /* generate Guid from system controller*/
-            ZF_LOGI("Send msg to sys app...");
-            msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
-            seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_REQ);
-            msg_info = seL4_Call(ipc_app_ep1, msg_info);
-            ZF_LOGI("Sys app responce received...");
-            msg_len = seL4_MessageInfo_get_length(msg_info);
-            if (msg_len > 0) {
-                msg_data = seL4_GetMR(0);
-            }
-            if (msg_data == IPC_CMD_SYS_CTL_RNG_RESP) {
-                memcpy(payload->key_info.guid, app_shared_memory, RNG_SIZE_IN_BYTES);
-            } else {
-                return -1;
-            }
-
-
-
+            /*Update length to request struct*/
+            key_req->pubkey_length = payload->key_info.pubkey_length;
+            key_req->privkey_length = payload->key_info.privkey_length;
         }
             break;
 
@@ -107,11 +94,11 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
 }
 
 
-int extract_public_key(uint8_t *key_data, uint8_t *guid,  uint32_t clientid, struct ree_tee_key_info *keyinfo, uint8_t *key, uint32_t max_size)
+int extract_public_key(uint8_t *key_data, uint32_t key_data_length, uint8_t *guid,  uint32_t clientid, struct ree_tee_key_info *keyinfo, uint8_t *key, uint32_t max_size)
 {
     /*Decrypt payload*/
 
-    struct ree_tee_key_data_storage *payload = decrypt_key_data(key_data, guid );
+    struct ree_tee_key_data_storage *payload = decrypt_key_data(key_data, key_data_length, guid );
 
 
     if (!payload)

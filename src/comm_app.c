@@ -545,47 +545,76 @@ static int handle_ree_msg(int32_t recv)
              - sizeof(struct ree_tee_key_resp_cmd));
 
 
+
+
             if (recv != sizeof(struct ree_tee_key_req_cmd)) {
                 ZF_LOGI("Invalid Message size");
                 SET_REE_HDR(hdr, REE_TEE_GEN_KEY_RESP, TEE_INVALID_MSG_SIZE,
                             REE_HDR_LEN);
             } else {
-                ZF_LOGI("Generate certificate file...%s", cmd->key_req_info.name);
-                /* use key service to generate keys*/
-                int err = generate_key_pair(&cmd->key_req_info, &resp->key_data, max_keyblob_size);
-                if (err) {
-                    SET_REE_HDR(hdr, REE_TEE_GEN_KEY_RESP, TEE_IPC_CMD_ERR,
-                                    REE_HDR_LEN);
+                ZF_LOGI("Generate keypair blob...%s", cmd->key_req_info.name);
 
-                } else {
+                struct ree_tee_key_info  *keyinfo_ptr = (struct ree_tee_key_info*)app_shared_memory;
+                memcpy(keyinfo_ptr, &cmd->key_req_info, sizeof(struct ree_tee_key_info));
+
+                struct ree_tee_key_data_storage *keyblob = (struct ree_tee_key_data_storage *)((uint8_t*)app_shared_memory + sizeof(struct ree_tee_key_info));
+                /* use key service to generate keys*/
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 3);
+                seL4_SetMR(0, IPC_CMD_KEY_CREATE_REQ);
+                seL4_SetMR(1, (seL4_Word)keyinfo_ptr);
+                seL4_SetMR(2, (seL4_Word)keyblob);
+
+                msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+                msg_len = seL4_MessageInfo_get_length(msg_info);
+                if (msg_len > 0) {
+                    msg_data = seL4_GetMR(0);
+                }
+                if ((msg_data == IPC_CMD_KEY_CREATE_RESP) && (keyblob->storage_size < max_keyblob_size))
+                {
+                    memcpy(&resp->key_data, keyblob, keyblob->storage_size );
+                    /* Populate response key_info from key generation data*/
+                    memcpy(&resp->key_data_info, keyinfo_ptr, sizeof(struct ree_tee_key_info));
+
+                    ZF_LOGI("Sys app responce received...");
                     int message_length = sizeof(struct ree_tee_key_resp_cmd)
-                     + resp->key_data.key_info.privkey_length
-                     + resp->key_data.key_info.pubkey_length ;
+                    + keyinfo_ptr->privkey_length
+                    + keyinfo_ptr->pubkey_length;
 
                     hdr->length = message_length;
                     hdr->msg_type = REE_TEE_GEN_KEY_RESP;
                     hdr->status = TEE_OK;
 
                     ZF_LOGI("Message Length = %d", message_length);
-                    /* Populate response key_info from storage data*/
-                    memcpy(&resp->key_data_info, &resp->key_data.key_info, sizeof(struct ree_tee_key_info));
 
-                    ZF_LOGI("Pub Key length = %d, priv key length = %d", resp->key_data_info.pubkey_length, resp->key_data_info.privkey_length);
+                }  else {
+                    SET_REE_HDR(hdr, REE_TEE_GEN_KEY_RESP, TEE_IPC_CMD_ERR,
+                                    REE_HDR_LEN);
+
                 }
             }
+
         }
         break;
         case REE_TEE_EXT_PUBKEY_REQ:
         {
             struct ree_tee_pub_key_req_cmd *cmd = (struct ree_tee_pub_key_req_cmd *)ree_msg_buf;
-            /* set key data just after message struct */
+            uint32_t key_blob_size = recv - sizeof(struct ree_tee_pub_key_req_cmd);
+
+            uint32_t max_keyblob_size = (max_message_size
+             - recv - sizeof(struct ree_tee_pub_key_resp_cmd));
+
+            /* set response structure  just after request struct */
             uint8_t  *output = (uint8_t*)ree_msg_buf + recv;
             struct ree_tee_pub_key_resp_cmd *resp = (struct ree_tee_pub_key_resp_cmd*)output;
             /* Move header to point response struct */
             hdr = (struct ree_tee_hdr *)output;
-
-            uint32_t max_keyblob_size = (max_message_size
-             - recv - sizeof(struct ree_tee_pub_key_resp_cmd));
+            /* Shared Memory:_   | Key blob | GUID | */
+            /* Copy parameters to shared ram */
+            uint8_t *keyblob_ptr = (uint8_t*)app_shared_memory;
+            uint8_t *guid_ptr =  (uint8_t*)app_shared_memory + key_blob_size;
+            memcpy(keyblob_ptr, &cmd->crypted_key_data[0], key_blob_size);
+            memcpy(guid_ptr, cmd->guid, 32);
 
             if (recv != (int32_t)cmd->hdr.length) {
                 ZF_LOGI("Invalid Message size");
@@ -593,22 +622,51 @@ static int handle_ree_msg(int32_t recv)
                             REE_HDR_LEN);
             } else {
                 ZF_LOGI("Extract Public key..");
-                /* use key service to generate keys*/
-                int err =  extract_public_key(cmd->crypted_key_data, cmd->guid, cmd->client_id, &resp->key_info, resp->pubkey, max_keyblob_size);
-                ZF_LOGI("Extract Public key..done..length=%d", resp->key_info.pubkey_length);
-                if (err) {
+                 msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
+
+                seL4_SetMR(0, IPC_CMD_KEY_PUBEXT_REQ);
+                seL4_SetMR(1, (seL4_Word)keyblob_ptr);
+                seL4_SetMR(2, (seL4_Word)key_blob_size);
+                seL4_SetMR(3, (seL4_Word)guid_ptr);
+                seL4_SetMR(4, (seL4_Word)cmd->client_id);
+
+                msg_info = seL4_Call(ipc_app_ep1, msg_info);
+
+                ZF_LOGI("Sys app responce received...");
+                msg_len = seL4_MessageInfo_get_length(msg_info);
+                if (msg_len > 0) {
+                    msg_data = seL4_GetMR(0);
+                }
+                if (msg_data == IPC_CMD_KEY_PUBEXT_RESP)
+                {
+                    struct ree_tee_key_info *key_info_ptr = (struct ree_tee_key_info*)seL4_GetMR(1);
+                    uint8_t *pubkey_ptr = (uint8_t*)seL4_GetMR(2);
+
+                    /* copy data to response struct*/
+
+                    if (resp->key_info.pubkey_length < max_keyblob_size)
+                    {
+                        memcpy(&resp->key_info, key_info_ptr, sizeof(struct ree_tee_key_info));
+                        memcpy(&resp->pubkey[0], pubkey_ptr,resp->key_info.pubkey_length);
+
+                        int message_length = sizeof(struct ree_tee_pub_key_resp_cmd)
+                        + resp->key_info.pubkey_length ;
+
+                        hdr->length = message_length;
+                        hdr->msg_type = REE_TEE_EXT_PUBKEY_RESP;
+                        hdr->status = TEE_OK;
+
+                        ZF_LOGI("Extract Public key..done..length=%d", resp->key_info.pubkey_length);
+                    }
+                    else
+                    {
+                        SET_REE_HDR(hdr, REE_TEE_EXT_PUBKEY_RESP, TEE_IPC_CMD_ERR,
+                                    REE_HDR_LEN);
+                    }
+                }
+                else {
                     SET_REE_HDR(hdr, REE_TEE_EXT_PUBKEY_RESP, TEE_IPC_CMD_ERR,
                                     REE_HDR_LEN);
-
-                } else {
-                    int message_length = sizeof(struct ree_tee_pub_key_resp_cmd)
-                     + resp->key_info.pubkey_length ;
-
-                    hdr->length = message_length;
-                    hdr->msg_type = REE_TEE_EXT_PUBKEY_RESP;
-                    hdr->status = TEE_OK;
-
-                    ZF_LOGI("Message Length = %d, Public key lengths =%d", message_length, resp->key_info.pubkey_length );
                 }
             }
         }

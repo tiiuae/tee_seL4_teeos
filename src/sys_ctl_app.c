@@ -20,6 +20,8 @@
 
 #include <teeos_common.h>
 #include <sys_ctl_service.h>
+#include <ree_tee_msg.h>
+#include <key_service.h>
 
 #include <utils/fence.h>
 #include <utils/zf_log.h>
@@ -28,6 +30,7 @@ seL4_CPtr ipc_root_ep = 0;
 seL4_CPtr ipc_app_ep1 = 0;
 
 void *app_shared_memory;
+uint32_t shared_memory_size = 32768; //TODO, get real size from rootserver
 
 static int setup_sys_ctl_io(void)
 {
@@ -256,6 +259,57 @@ static void handle_service_requests(void)
                     seL4_SetMR(0, IPC_CMD_SYS_FAIL);
                 }
                 seL4_Reply(msg_info);
+            }
+            break;
+            case IPC_CMD_KEY_CREATE_REQ:
+            {
+                ZF_LOGI("Key blob generation request");
+                struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info*)seL4_GetMR(1);
+                struct ree_tee_key_data_storage *key_blob = (struct ree_tee_key_data_storage*)seL4_GetMR(2);
+                int max_key_blob_size = shared_memory_size - sizeof(struct ree_tee_key_data_storage);
+
+                int err = generate_key_pair(keyinfo_ptr, key_blob, max_key_blob_size);
+
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_KEY_CREATE_RESP);
+                }
+                else {
+                    ZF_LOGI("Key create failed %d ", err);
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+            }
+            break;
+            case IPC_CMD_KEY_PUBEXT_REQ:
+            {
+                ZF_LOGI("Public key extraction request");
+                uint8_t *key_data_ptr = (uint8_t*)seL4_GetMR(1);
+                uint32_t key_data_length = (uint32_t)seL4_GetMR(2);
+                uint8_t *guid_ptr = (uint8_t*)seL4_GetMR(3);
+                uint32_t client_id = (uint32_t)seL4_GetMR(4);
+                struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info *)((uint8_t*)key_data_ptr + key_data_length);
+                uint8_t *pubkey_ptr = (uint8_t*)keyinfo_ptr + sizeof(struct ree_tee_key_info);
+                uint32_t max_size = shared_memory_size - (pubkey_ptr - (uint8_t*)app_shared_memory);
+                ZF_LOGI("Max size %u clientid %u", max_size,client_id);
+
+
+                int err = extract_public_key(key_data_ptr, key_data_length, guid_ptr, client_id, keyinfo_ptr, pubkey_ptr, max_size);
+
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 3);
+                if (!err) {
+                    seL4_SetMR(0, IPC_CMD_KEY_PUBEXT_RESP);
+                    seL4_SetMR(1, (seL4_Word)keyinfo_ptr);
+                    seL4_SetMR(2, (seL4_Word)pubkey_ptr);
+                }
+                else {
+                    ZF_LOGI("Key extraction failed %d ", err);
+                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                }
+                seL4_Reply(msg_info);
+
+
+
             }
             break;
             default:
