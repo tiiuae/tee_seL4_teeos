@@ -11,7 +11,7 @@ project(ringbuffer_test C CXX ASM)
 set(CMAKE_CXX_STANDARD 11)
 
 add_compile_options(
-    -Werror
+#    -Werror    warning in spinlock.h
     -Wall
     -Wextra
     -O2
@@ -37,6 +37,8 @@ add_executable(
 target_include_directories(
     ringbuffer_test PRIVATE
         "include"
+        "../include"
+        "../../util_libs/libplatsupport/include"
 )
 
 target_link_libraries(ringbuffer_test gtest_main)

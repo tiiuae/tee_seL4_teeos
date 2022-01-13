@@ -7,7 +7,7 @@
 #include <mutex>    
 
 extern "C" {
-#include <linux/circ_buf.h>
+#include "sel4_circ.h"
 #include "ringbuffer.h"
 }
 

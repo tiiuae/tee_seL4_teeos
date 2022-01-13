@@ -104,7 +104,6 @@ static inline int ipc_msg_call(seL4_Word cmd,
 
     msg_len = seL4_MessageInfo_get_length(msg_info);
     if (msg_len != resp_words) {
-        ZF_LOGF("invalid resp len: %ld / %d", msg_len, resp_words);
         return -EINVAL;
     }
 
