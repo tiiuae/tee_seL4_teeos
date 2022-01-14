@@ -14,8 +14,7 @@
 #define IHC_IRQ_BADGE               IHC_HART4_INT
 
 #define RPMSG_RX_MAX_BUFF_SIZE      256U
-#define RPMSG_ECHO_EPT_ADDR         6U
-#define RPMSG_ECHO_CHANNEL_NAME     "rpmsg-client-sample"
+#define RPMSG_SEL4_EPT_ADDR         6U
 #define RPMSG_TTY_CHANNEL_NAME      "rpmsg-virtual-tty-channel"
 
 
@@ -30,4 +29,5 @@ struct sel4_rpmsg_config {
     uintptr_t vring_pa;
 };
 
-int rpmsg_sel4(struct sel4_rpmsg_config *config);
+int rpmsg_create_sel4_ept(struct sel4_rpmsg_config *config);
+int rpmsg_announce_sel4_ept();

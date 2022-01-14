@@ -6,6 +6,7 @@ add_library(rpmsg_lite STATIC
     rpmsg_lite/rpmsg_ns.c
     rpmsg_lite/rpmsg_queue.c
     virtio/virtqueue.c
+    rpmsg_sel4.c
 )
 
 list(APPEND rpmsg_include_dirs

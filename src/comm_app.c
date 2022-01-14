@@ -646,8 +646,20 @@ int main(int argc, char **argv)
     /* Ping-pong IPC */
     recv_from_app();
 
+    /* Create RPMSG remote endpoint and wait for master to come online */
+    error = rpmsg_create_sel4_ept(&comm.rpmsg_conf);
+    if (error) {
+        return error;
+    }
+
     /* Wait linux to init ree2tee channel */
     error = wait_ree_setup();
+    if (error) {
+        return error;
+    }
+
+    /* Announce RPMSG TTY endpoint to linux */
+    error = rpmsg_announce_sel4_ept();
     if (error) {
         return error;
     }
