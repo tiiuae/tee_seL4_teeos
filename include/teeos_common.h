@@ -38,6 +38,8 @@ enum ipc_cmd {
     IPC_CMD_CH_ADDR_RESP,
     IPC_CMD_APP_EP_REQ,
     IPC_CMD_APP_EP_RESP,
+    IPC_CMD_RPMSG_CONF_REQ,
+    IPC_CMD_RPMSG_CONF_RESP,
     IPC_CMD_SYS_CTL_ADDR_REQ,
     IPC_CMD_SYS_CTL_ADDR_RESP,
     IPC_CMD_SYS_CTL_RNG_REQ,
@@ -70,6 +72,17 @@ struct ipc_msg_ch_addr {
     seL4_Word tee2ree;          /* TEE->REE circular buffer*/
     seL4_Word tee2ree_len;      /* Buffer length */
     seL4_Word shared_memory;
+
+};
+
+struct ipc_msg_ihc_buf {
+    seL4_Word cmd_id;
+    seL4_Word ihc_buf_va;       /* IHC buffer, app addr */
+    seL4_Word ihc_buf_pa;       /* IHC buffer, physical addr */
+    seL4_Word ihc_irq;          /* IHC irq */
+    seL4_Word ihc_ntf;          /* IHC irq notfication */
+    seL4_Word vring_va;         /* vring comm_app addr */
+    seL4_Word vring_pa;         /* vring physical addr */
 };
 
 struct ipc_msg_cys_ctl_addr {

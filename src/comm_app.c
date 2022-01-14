@@ -28,6 +28,8 @@
 #include <utils/arith.h>
 #include "sel4_circ.h"
 
+#include "rpmsg_sel4.h"
+
 seL4_CPtr ipc_root_ep = 0;
 seL4_CPtr ipc_app_ep1 = 0;
 void *app_shared_memory;
@@ -35,6 +37,8 @@ void *app_shared_memory;
 struct comm_ch {
     struct tee_comm_ch ree2tee;
     struct tee_comm_ch tee2ree;
+
+    struct sel4_rpmsg_config rpmsg_conf;
 };
 
 static struct comm_ch comm = {0};
@@ -113,6 +117,48 @@ static int setup_comm_ch(void)
 
     ZF_LOGI("ch: tee2ree.ctrl [%p], buf [%p]", comm.tee2ree.ctrl,
             comm.tee2ree.buf);
+
+    return 0;
+}
+
+static int setup_ihc_buf(struct sel4_rpmsg_config *rpmsg_conf)
+{
+    int error = -1;
+
+    /* IPC response */
+    struct ipc_msg_ihc_buf ipc_resp = { 0 };
+    const uint32_t RESP_WORDS = IPC_CMD_WORDS(ipc_resp);
+    seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
+
+    ZF_LOGI("seL4_Call: IPC_CMD_RPMSG_CONF_REQ");
+
+    error = ipc_msg_call(IPC_CMD_RPMSG_CONF_REQ,
+                         ipc_root_ep,
+                         RESP_WORDS,
+                         msg_data);
+
+    if (error) {
+        return error;
+    }
+
+    if (ipc_resp.cmd_id != IPC_CMD_RPMSG_CONF_RESP) {
+        ZF_LOGF("ipc cmd_id: 0x%lx", ipc_resp.cmd_id);
+        return -EPERM;
+    }
+
+    rpmsg_conf->ihc_buf_pa = ipc_resp.ihc_buf_pa;
+    rpmsg_conf->ihc_buf_va = (void*)ipc_resp.ihc_buf_va;
+    rpmsg_conf->ihc_irq = ipc_resp.ihc_irq;
+    rpmsg_conf->ihc_ntf = ipc_resp.ihc_ntf;
+    rpmsg_conf->vring_va = (void*)ipc_resp.vring_va;
+    rpmsg_conf->vring_pa = ipc_resp.vring_pa;
+
+    ZF_LOGI("ihc_buf_pa [0x%lx]", rpmsg_conf->ihc_buf_pa);
+    ZF_LOGI("ihc_buf_va [%p]", rpmsg_conf->ihc_buf_va);
+    ZF_LOGI("ihc_irq    [0x%lx]", rpmsg_conf->ihc_irq);
+    ZF_LOGI("ihc_ntf    [0x%lx]", rpmsg_conf->ihc_ntf);
+    ZF_LOGI("vring_va   [0%p]", rpmsg_conf->vring_va);
+    ZF_LOGI("vring_pa   [0x%lx]", rpmsg_conf->vring_pa);
 
     return 0;
 }
@@ -582,6 +628,12 @@ int main(int argc, char **argv)
 
     /* Wait shared memory config from rootserver and init tee2ree channel */
     error = setup_comm_ch();
+    if (error) {
+        return error;
+    }
+
+    /* Wait rpmsg config from rootserver */
+    error = setup_ihc_buf(&comm.rpmsg_conf);
     if (error) {
         return error;
     }

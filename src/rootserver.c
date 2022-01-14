@@ -440,6 +440,31 @@ static void send_comm_ch_addr(struct root_env *ctx)
     seL4_Reply(msg_info);
 }
 
+static void send_rpmsg_conf(struct root_env *ctx)
+{
+    struct ipc_msg_ihc_buf hss_ihc = {
+        .cmd_id = IPC_CMD_RPMSG_CONF_RESP,
+        .ihc_buf_va = (uintptr_t)ctx->rpmsg.ihc_buf_va,
+        .ihc_buf_pa = ctx->rpmsg.ihc_buf_pa,
+        .ihc_irq = ctx->rpmsg.ihc_irq,
+        .ihc_ntf = ctx->rpmsg.ihc_ntf,
+        .vring_va = (uintptr_t)ctx->rpmsg.vring_va,
+        .vring_pa = ctx->rpmsg.vring_pa,
+    };
+
+    const uint32_t msg_words = IPC_CMD_WORDS(hss_ihc);
+
+    seL4_Word *msg_data = (seL4_Word *)&hss_ihc;
+
+    seL4_MessageInfo_t msg_info = seL4_MessageInfo_new(0, 0, 0, msg_words);
+    for (uint32_t i = 0; i < msg_words; i++) {
+        seL4_SetMR(i, msg_data[i]);
+    }
+
+    ZF_LOGI("Send IPC_CMD_RPMSG_CONF_RESP");
+    seL4_Reply(msg_info);
+}
+
 static int send_sys_ctl_addr(struct root_env *ctx)
 {
     struct ipc_msg_cys_ctl_addr sys_ctl_addr = {
@@ -505,6 +530,9 @@ static void process_ipc_msg(struct root_env *ctx, seL4_Word sender, seL4_Word ms
     switch (ipc_cmd_id) {
     case IPC_CMD_CH_ADDR_REQ:
         send_comm_ch_addr(ctx);
+        break;
+    case IPC_CMD_RPMSG_CONF_REQ:
+        send_rpmsg_conf(ctx);
         break;
     case IPC_CMD_APP_EP_REQ:
         send_inter_app_ep(ctx, sender);

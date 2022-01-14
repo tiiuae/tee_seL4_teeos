@@ -84,6 +84,7 @@ target_compile_options(teeos_comm_app
 target_include_directories(teeos_comm_app
     PRIVATE
         "include"
+        "${rpmsg_inc}"
 )
 
 target_link_libraries(teeos_comm_app
@@ -97,7 +98,9 @@ target_link_libraries(teeos_comm_app
         sel4utils
         sel4platsupport
         sel4muslcsys
-    PRIVATE teeos_Config
+    PRIVATE 
+        teeos_Config
+        rpmsg_lite
 )
 
 # APP2
