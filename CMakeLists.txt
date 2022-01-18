@@ -71,6 +71,15 @@ list(APPEND rpmsg_inc
     "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/rpmsg/platform/microchip/miv"
 )
 
+#libtomcrypt
+
+add_subdirectory(src/libtommath)
+add_subdirectory(src/libtomcrypt)
+
+list(APPEND libtomcrypt_inc
+"${TOMCRYPT_SRC_FOLDER}/src/headers"
+)
+
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
     src/comm_app.c
@@ -118,6 +127,7 @@ target_compile_options(sys_ctl_app
 target_include_directories(sys_ctl_app
     PRIVATE
         "include"
+        "${libtomcrypt_inc}"
 )
 
 target_link_libraries(sys_ctl_app
@@ -131,7 +141,9 @@ target_link_libraries(sys_ctl_app
         sel4utils
         sel4platsupport
         sel4muslcsys
-    PRIVATE teeos_Config
+    PRIVATE
+        teeos_Config
+        tomcrypt
 )
 
 # CPIO

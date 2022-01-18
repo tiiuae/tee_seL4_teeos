@@ -1,0 +1,187 @@
+#
+# Copyright 2022, Unikie
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+project(tommath VERSION 1.2.0)
+
+add_library(tommath STATIC
+${TOMMATH_SRC_FOLDER}/mp_2expt.c
+${TOMMATH_SRC_FOLDER}/mp_abs.c
+${TOMMATH_SRC_FOLDER}/mp_add.c
+${TOMMATH_SRC_FOLDER}/mp_add_d.c
+${TOMMATH_SRC_FOLDER}/mp_addmod.c
+${TOMMATH_SRC_FOLDER}/mp_and.c
+${TOMMATH_SRC_FOLDER}/mp_clamp.c
+${TOMMATH_SRC_FOLDER}/mp_clear.c
+${TOMMATH_SRC_FOLDER}/mp_clear_multi.c
+${TOMMATH_SRC_FOLDER}/mp_cmp.c
+${TOMMATH_SRC_FOLDER}/mp_cmp_d.c
+${TOMMATH_SRC_FOLDER}/mp_cmp_mag.c
+${TOMMATH_SRC_FOLDER}/mp_cnt_lsb.c
+${TOMMATH_SRC_FOLDER}/mp_complement.c
+${TOMMATH_SRC_FOLDER}/mp_copy.c
+${TOMMATH_SRC_FOLDER}/mp_count_bits.c
+${TOMMATH_SRC_FOLDER}/mp_cutoffs.c
+${TOMMATH_SRC_FOLDER}/mp_div.c
+${TOMMATH_SRC_FOLDER}/mp_div_2.c
+${TOMMATH_SRC_FOLDER}/mp_div_2d.c
+${TOMMATH_SRC_FOLDER}/mp_div_d.c
+${TOMMATH_SRC_FOLDER}/mp_dr_is_modulus.c
+${TOMMATH_SRC_FOLDER}/mp_dr_reduce.c
+${TOMMATH_SRC_FOLDER}/mp_dr_setup.c
+${TOMMATH_SRC_FOLDER}/mp_error_to_string.c
+${TOMMATH_SRC_FOLDER}/mp_exch.c
+${TOMMATH_SRC_FOLDER}/mp_expt_n.c
+${TOMMATH_SRC_FOLDER}/mp_exptmod.c
+${TOMMATH_SRC_FOLDER}/mp_exteuclid.c
+${TOMMATH_SRC_FOLDER}/mp_fread.c
+${TOMMATH_SRC_FOLDER}/mp_from_sbin.c
+${TOMMATH_SRC_FOLDER}/mp_from_ubin.c
+${TOMMATH_SRC_FOLDER}/mp_fwrite.c
+${TOMMATH_SRC_FOLDER}/mp_gcd.c
+${TOMMATH_SRC_FOLDER}/mp_get_double.c
+${TOMMATH_SRC_FOLDER}/mp_get_i32.c
+${TOMMATH_SRC_FOLDER}/mp_get_i64.c
+${TOMMATH_SRC_FOLDER}/mp_get_l.c
+${TOMMATH_SRC_FOLDER}/mp_get_mag_u32.c
+${TOMMATH_SRC_FOLDER}/mp_get_mag_u64.c
+${TOMMATH_SRC_FOLDER}/mp_get_mag_ul.c
+${TOMMATH_SRC_FOLDER}/mp_grow.c
+${TOMMATH_SRC_FOLDER}/mp_init.c
+${TOMMATH_SRC_FOLDER}/mp_init_copy.c
+${TOMMATH_SRC_FOLDER}/mp_init_i32.c
+${TOMMATH_SRC_FOLDER}/mp_init_i64.c
+${TOMMATH_SRC_FOLDER}/mp_init_l.c
+${TOMMATH_SRC_FOLDER}/mp_init_multi.c
+${TOMMATH_SRC_FOLDER}/mp_init_set.c
+${TOMMATH_SRC_FOLDER}/mp_init_size.c
+${TOMMATH_SRC_FOLDER}/mp_init_u32.c
+${TOMMATH_SRC_FOLDER}/mp_init_u64.c
+${TOMMATH_SRC_FOLDER}/mp_init_ul.c
+${TOMMATH_SRC_FOLDER}/mp_invmod.c
+${TOMMATH_SRC_FOLDER}/mp_is_square.c
+${TOMMATH_SRC_FOLDER}/mp_kronecker.c
+${TOMMATH_SRC_FOLDER}/mp_lcm.c
+${TOMMATH_SRC_FOLDER}/mp_log_n.c
+${TOMMATH_SRC_FOLDER}/mp_lshd.c
+${TOMMATH_SRC_FOLDER}/mp_mod.c
+${TOMMATH_SRC_FOLDER}/mp_mod_2d.c
+${TOMMATH_SRC_FOLDER}/mp_montgomery_calc_normalization.c
+${TOMMATH_SRC_FOLDER}/mp_montgomery_reduce.c
+${TOMMATH_SRC_FOLDER}/mp_montgomery_setup.c
+${TOMMATH_SRC_FOLDER}/mp_mul.c
+${TOMMATH_SRC_FOLDER}/mp_mul_2.c
+${TOMMATH_SRC_FOLDER}/mp_mul_2d.c
+${TOMMATH_SRC_FOLDER}/mp_mul_d.c
+${TOMMATH_SRC_FOLDER}/mp_mulmod.c
+${TOMMATH_SRC_FOLDER}/mp_neg.c
+${TOMMATH_SRC_FOLDER}/mp_or.c
+${TOMMATH_SRC_FOLDER}/mp_pack.c
+${TOMMATH_SRC_FOLDER}/mp_pack_count.c
+${TOMMATH_SRC_FOLDER}/mp_prime_fermat.c
+${TOMMATH_SRC_FOLDER}/mp_prime_frobenius_underwood.c
+${TOMMATH_SRC_FOLDER}/mp_prime_is_prime.c
+${TOMMATH_SRC_FOLDER}/mp_prime_miller_rabin.c
+${TOMMATH_SRC_FOLDER}/mp_prime_next_prime.c
+${TOMMATH_SRC_FOLDER}/mp_prime_rabin_miller_trials.c
+${TOMMATH_SRC_FOLDER}/mp_prime_rand.c
+${TOMMATH_SRC_FOLDER}/mp_prime_strong_lucas_selfridge.c
+${TOMMATH_SRC_FOLDER}/mp_radix_size.c
+${TOMMATH_SRC_FOLDER}/mp_radix_size_overestimate.c
+${TOMMATH_SRC_FOLDER}/mp_rand.c
+${TOMMATH_SRC_FOLDER}/mp_read_radix.c
+${TOMMATH_SRC_FOLDER}/mp_reduce.c
+${TOMMATH_SRC_FOLDER}/mp_reduce_2k.c
+${TOMMATH_SRC_FOLDER}/mp_reduce_2k_l.c
+${TOMMATH_SRC_FOLDER}/mp_reduce_2k_setup.c
+${TOMMATH_SRC_FOLDER}/mp_reduce_2k_setup_l.c
+${TOMMATH_SRC_FOLDER}/mp_reduce_is_2k.c
+${TOMMATH_SRC_FOLDER}/mp_reduce_is_2k_l.c
+${TOMMATH_SRC_FOLDER}/mp_reduce_setup.c
+${TOMMATH_SRC_FOLDER}/mp_root_n.c
+${TOMMATH_SRC_FOLDER}/mp_rshd.c
+${TOMMATH_SRC_FOLDER}/mp_sbin_size.c
+${TOMMATH_SRC_FOLDER}/mp_set.c
+${TOMMATH_SRC_FOLDER}/mp_set_double.c
+${TOMMATH_SRC_FOLDER}/mp_set_i32.c
+${TOMMATH_SRC_FOLDER}/mp_set_i64.c
+${TOMMATH_SRC_FOLDER}/mp_set_l.c
+${TOMMATH_SRC_FOLDER}/mp_set_u32.c
+${TOMMATH_SRC_FOLDER}/mp_set_u64.c
+${TOMMATH_SRC_FOLDER}/mp_set_ul.c
+${TOMMATH_SRC_FOLDER}/mp_shrink.c
+${TOMMATH_SRC_FOLDER}/mp_signed_rsh.c
+${TOMMATH_SRC_FOLDER}/mp_sqrmod.c
+${TOMMATH_SRC_FOLDER}/mp_sqrt.c
+${TOMMATH_SRC_FOLDER}/mp_sqrtmod_prime.c
+${TOMMATH_SRC_FOLDER}/mp_sub.c
+${TOMMATH_SRC_FOLDER}/mp_sub_d.c
+${TOMMATH_SRC_FOLDER}/mp_submod.c
+${TOMMATH_SRC_FOLDER}/mp_to_radix.c
+${TOMMATH_SRC_FOLDER}/mp_to_sbin.c
+${TOMMATH_SRC_FOLDER}/mp_to_ubin.c
+${TOMMATH_SRC_FOLDER}/mp_ubin_size.c
+${TOMMATH_SRC_FOLDER}/mp_unpack.c
+${TOMMATH_SRC_FOLDER}/mp_xor.c
+${TOMMATH_SRC_FOLDER}/mp_zero.c
+${TOMMATH_SRC_FOLDER}/s_mp_add.c
+${TOMMATH_SRC_FOLDER}/s_mp_copy_digs.c
+${TOMMATH_SRC_FOLDER}/s_mp_div_3.c
+${TOMMATH_SRC_FOLDER}/s_mp_div_recursive.c
+${TOMMATH_SRC_FOLDER}/s_mp_div_school.c
+${TOMMATH_SRC_FOLDER}/s_mp_div_small.c
+${TOMMATH_SRC_FOLDER}/s_mp_exptmod.c
+${TOMMATH_SRC_FOLDER}/s_mp_exptmod_fast.c
+${TOMMATH_SRC_FOLDER}/s_mp_get_bit.c
+${TOMMATH_SRC_FOLDER}/s_mp_invmod.c
+${TOMMATH_SRC_FOLDER}/s_mp_invmod_odd.c
+${TOMMATH_SRC_FOLDER}/s_mp_log.c
+${TOMMATH_SRC_FOLDER}/s_mp_log_2expt.c
+${TOMMATH_SRC_FOLDER}/s_mp_log_d.c
+${TOMMATH_SRC_FOLDER}/s_mp_montgomery_reduce_comba.c
+${TOMMATH_SRC_FOLDER}/s_mp_mul.c
+${TOMMATH_SRC_FOLDER}/s_mp_mul_balance.c
+${TOMMATH_SRC_FOLDER}/s_mp_mul_comba.c
+${TOMMATH_SRC_FOLDER}/s_mp_mul_high.c
+${TOMMATH_SRC_FOLDER}/s_mp_mul_high_comba.c
+${TOMMATH_SRC_FOLDER}/s_mp_mul_karatsuba.c
+${TOMMATH_SRC_FOLDER}/s_mp_mul_toom.c
+${TOMMATH_SRC_FOLDER}/s_mp_prime_is_divisible.c
+${TOMMATH_SRC_FOLDER}/s_mp_prime_tab.c
+${TOMMATH_SRC_FOLDER}/s_mp_radix_map.c
+${TOMMATH_SRC_FOLDER}/s_mp_radix_size_overestimate.c
+${TOMMATH_SRC_FOLDER}/s_mp_rand_platform.c
+${TOMMATH_SRC_FOLDER}/s_mp_sqr.c
+${TOMMATH_SRC_FOLDER}/s_mp_sqr_comba.c
+${TOMMATH_SRC_FOLDER}/s_mp_sqr_karatsuba.c
+${TOMMATH_SRC_FOLDER}/s_mp_sqr_toom.c
+${TOMMATH_SRC_FOLDER}/s_mp_sub.c
+${TOMMATH_SRC_FOLDER}/s_mp_zero_buf.c
+${TOMMATH_SRC_FOLDER}/s_mp_zero_digs.c
+)
+
+
+list(APPEND tommath_include_dirs
+    "${TOMMATH_SRC_FOLDER}"
+)
+
+target_include_directories(tommath
+PUBLIC
+    ${tommath_include_dirs}
+)   
+
+target_link_libraries(tommath
+    PUBLIC
+        muslc
+        sel4
+        sel4runtime
+        sel4utils
+        sel4platsupport
+        sel4_autoconf
+    PRIVATE
+        teeos_Config
+)
+
+export(PACKAGE ${PROJECT_NAME})
