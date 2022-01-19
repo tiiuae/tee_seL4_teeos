@@ -27,7 +27,9 @@ list(
 
 set(NANOPB_SRC_ROOT_FOLDER "${project_dir}/tools/nanopb" CACHE INTERNAL "")
 set(TOMMATH_SRC_FOLDER "${project_dir}/projects/crypto/libtommath" CACHE INTERNAL "")
-set(TOMCRYPT_SRC_FOLDER "${project_dir}/projects/crypto/libtomcrypt" CACHE INTERNAL "")
+#set(TOMCRYPT_SRC_FOLDER "${project_dir}/projects/crypto/libtomcrypt" CACHE INTERNAL "")
+set(TOMCRYPT_SRC_FOLDER "${project_dir}/projects/crypto/optee_os/core/lib/libtomcrypt" CACHE INTERNAL "")
+set(OPTEE_SRC_FOLDER "${project_dir}/projects/crypto/optee_os" CACHE INTERNAL "")
 
 set(SEL4_CONFIG_DEFAULT_ADVANCED ON)
 

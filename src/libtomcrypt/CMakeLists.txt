@@ -14,7 +14,7 @@ ${TOMCRYPT_SRC_FOLDER}/src/ciphers/anubis.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/b
 ${TOMCRYPT_SRC_FOLDER}/src/ciphers/camellia.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/cast5.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/des.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/idea.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/kasumi.c 
 ${TOMCRYPT_SRC_FOLDER}/src/ciphers/khazad.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/kseed.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/multi2.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/noekeon.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/rc2.c 
 ${TOMCRYPT_SRC_FOLDER}/src/ciphers/rc5.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/rc6.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/safer/safer.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/safer/saferp.c 
-${TOMCRYPT_SRC_FOLDER}/src/ciphers/serpent.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/skipjack.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/tea.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/twofish/twofish.c 
+${TOMCRYPT_SRC_FOLDER}/src/ciphers/serpent.c ${TOMCRYPT_SRC_FOLDER}/src/ciphers/skipjack.c  ${TOMCRYPT_SRC_FOLDER}/src/ciphers/twofish/twofish.c 
 ${TOMCRYPT_SRC_FOLDER}/src/ciphers/xtea.c ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_add_aad.c ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_add_nonce.c 
 ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_done.c ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_init.c ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_memory.c 
 ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_process.c ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_reset.c ${TOMCRYPT_SRC_FOLDER}/src/encauth/ccm/ccm_test.c 
@@ -68,7 +68,7 @@ ${TOMCRYPT_SRC_FOLDER}/src/math/fp/ltc_ecc_fp_mulmod.c ${TOMCRYPT_SRC_FOLDER}/sr
 ${TOMCRYPT_SRC_FOLDER}/src/math/radix_to_bin.c ${TOMCRYPT_SRC_FOLDER}/src/math/rand_bn.c ${TOMCRYPT_SRC_FOLDER}/src/math/rand_prime.c ${TOMCRYPT_SRC_FOLDER}/src/math/tfm_desc.c ${TOMCRYPT_SRC_FOLDER}/src/misc/adler32.c 
 ${TOMCRYPT_SRC_FOLDER}/src/misc/base16/base16_decode.c ${TOMCRYPT_SRC_FOLDER}/src/misc/base16/base16_encode.c ${TOMCRYPT_SRC_FOLDER}/src/misc/base32/base32_decode.c 
 ${TOMCRYPT_SRC_FOLDER}/src/misc/base32/base32_encode.c ${TOMCRYPT_SRC_FOLDER}/src/misc/base64/base64_decode.c ${TOMCRYPT_SRC_FOLDER}/src/misc/base64/base64_encode.c 
-${TOMCRYPT_SRC_FOLDER}/src/misc/bcrypt/bcrypt.c ${TOMCRYPT_SRC_FOLDER}/src/misc/burn_stack.c ${TOMCRYPT_SRC_FOLDER}/src/misc/compare_testvector.c ${TOMCRYPT_SRC_FOLDER}/src/misc/copy_or_zeromem.c 
+${TOMCRYPT_SRC_FOLDER}/src/misc/burn_stack.c ${TOMCRYPT_SRC_FOLDER}/src/misc/compare_testvector.c ${TOMCRYPT_SRC_FOLDER}/src/misc/copy_or_zeromem.c 
 ${TOMCRYPT_SRC_FOLDER}/src/misc/crc32.c ${TOMCRYPT_SRC_FOLDER}/src/misc/crypt/crypt.c ${TOMCRYPT_SRC_FOLDER}/src/misc/crypt/crypt_argchk.c 
 ${TOMCRYPT_SRC_FOLDER}/src/misc/crypt/crypt_cipher_descriptor.c ${TOMCRYPT_SRC_FOLDER}/src/misc/crypt/crypt_cipher_is_valid.c 
 ${TOMCRYPT_SRC_FOLDER}/src/misc/crypt/crypt_constants.c ${TOMCRYPT_SRC_FOLDER}/src/misc/crypt/crypt_find_cipher.c 
@@ -169,17 +169,17 @@ ${TOMCRYPT_SRC_FOLDER}/src/pk/ecc/ltc_ecc_is_point_at_infinity.c ${TOMCRYPT_SRC_
 ${TOMCRYPT_SRC_FOLDER}/src/pk/ecc/ltc_ecc_mulmod.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ecc/ltc_ecc_mulmod_timing.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ecc/ltc_ecc_points.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/ecc/ltc_ecc_projective_add_point.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ecc/ltc_ecc_projective_dbl_point.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/ecc/ltc_ecc_verify_key.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_export.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_import.c 
-${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_import_pkcs8.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_import_raw.c 
+${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_import_pkcs8.c
 ${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_import_x509.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_make_key.c ${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_sign.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_verify.c ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_i2osp.c ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_mgf1.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_oaep_decode.c ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_oaep_encode.c ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_os2ip.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_pss_decode.c ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_pss_encode.c ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_v1_5_decode.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_v1_5_encode.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_decrypt_key.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_encrypt_key.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_export.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_exptmod.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_get_size.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import.c 
-${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import_pkcs8.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import_x509.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_key.c 
+${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import_pkcs8.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import_x509.c  
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_make_key.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_set.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_sign_hash.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_sign_saltlen_get.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_verify_hash.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_export.c 
-${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_pkcs8.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_raw.c 
+${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_pkcs8.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_x509.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_make_key.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_shared_secret.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/chacha20.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/fortuna.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/rc4.c 
 ${TOMCRYPT_SRC_FOLDER}/src/prngs/rng_get_bytes.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/rng_make_prng.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/sober128.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/sprng.c 
@@ -196,11 +196,20 @@ ${TOMCRYPT_SRC_FOLDER}/src/stream/salsa20/xsalsa20_setup.c ${TOMCRYPT_SRC_FOLDER
 ${TOMCRYPT_SRC_FOLDER}/src/stream/sober128/sober128_stream.c ${TOMCRYPT_SRC_FOLDER}/src/stream/sober128/sober128_stream_memory.c 
 ${TOMCRYPT_SRC_FOLDER}/src/stream/sober128/sober128_test.c ${TOMCRYPT_SRC_FOLDER}/src/stream/sosemanuk/sosemanuk.c 
 ${TOMCRYPT_SRC_FOLDER}/src/stream/sosemanuk/sosemanuk_memory.c ${TOMCRYPT_SRC_FOLDER}/src/stream/sosemanuk/sosemanuk_test.c
+
+#These are not included in older version of libtomcrypt
+#${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_key.c
+#${TOMCRYPT_SRC_FOLDER}/src/pk/ed25519/ed25519_import_raw.c 
+#${TOMCRYPT_SRC_FOLDER}/src/ciphers/tea.c
+#${TOMCRYPT_SRC_FOLDER}/src/misc/bcrypt/bcrypt.c 
+#${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_raw.c 
 )
 
 list(APPEND tomcrypt_include_dirs
     "${TOMCRYPT_SRC_FOLDER}/src/headers"
     "${TOMMATH_SRC_FOLDER}"
+    "${OPTEE_SRC_FOLDER}/lib/libutils/ext/include"
+    "include"
 )
 
 target_include_directories(tomcrypt
@@ -209,7 +218,13 @@ PUBLIC
 )  
 
 
-target_compile_definitions(tomcrypt PUBLIC USE_LTM LTM_DESC)
+target_compile_definitions(tomcrypt PUBLIC
+ #USE_LTM
+ #LTM_DESC
+ MP_YES=true
+ MP_NO=false
+ LTC_MAX_ECC=521
+ )
 
 target_link_libraries(tomcrypt
     PUBLIC

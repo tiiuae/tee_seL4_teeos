@@ -63,6 +63,25 @@ set(ExtraCompileOptions
 )
 
 # RPMSG
+add_library(sysctllib STATIC
+    src/sys_ctl_services.c
+)
+target_include_directories(sysctllib
+    PRIVATE
+        "include"
+)
+target_link_libraries(sysctllib
+    PUBLIC
+        muslc
+        sel4
+        sel4runtime
+        sel4utils
+        sel4platsupport
+        sel4_autoconf
+    PRIVATE
+        teeos_Config
+)
+
 add_subdirectory(src/rpmsg)
 list(APPEND rpmsg_inc
     "${PROJECT_SOURCE_DIR}/include/rpmsg_lite"
@@ -75,6 +94,7 @@ list(APPEND rpmsg_inc
 
 add_subdirectory(src/libtommath)
 add_subdirectory(src/libtomcrypt)
+add_subdirectory(src/optee_crypto)
 
 list(APPEND libtomcrypt_inc
 "${TOMCRYPT_SRC_FOLDER}/src/headers"
@@ -115,7 +135,6 @@ target_link_libraries(teeos_comm_app
 # APP2
 add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
-    src/sys_ctl_services.c
     src/key_service.c
 )
 
@@ -128,6 +147,7 @@ target_include_directories(sys_ctl_app
     PRIVATE
         "include"
         "${libtomcrypt_inc}"
+        "${OPTEE_SRC_FOLDER}/core/include"
 )
 
 target_link_libraries(sys_ctl_app
@@ -143,7 +163,9 @@ target_link_libraries(sys_ctl_app
         sel4muslcsys
     PRIVATE
         teeos_Config
+        sysctllib
         tomcrypt
+        opteecrypt
 )
 
 # CPIO

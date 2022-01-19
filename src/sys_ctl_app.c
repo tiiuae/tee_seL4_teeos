@@ -26,6 +26,9 @@
 #include <utils/fence.h>
 #include <utils/zf_log.h>
 
+#include <crypto/crypto.h>
+#include <tomcrypt_init.h>
+
 seL4_CPtr ipc_root_ep = 0;
 seL4_CPtr ipc_app_ep1 = 0;
 
@@ -396,7 +399,11 @@ void puf_demo(uint8_t opcode)
 
 }
 
+static void init_crypto()
+{
 
+    crypto_init();
+}
 
 
 int main(int argc, char **argv)
@@ -410,6 +417,8 @@ int main(int argc, char **argv)
         ZF_LOGF("Invalid arg count: %d", argc);
         return -EINVAL;
     }
+
+    init_crypto();
 
     ipc_root_ep = (seL4_CPtr)atol(argv[0]);
     if (ipc_root_ep == 0) {
