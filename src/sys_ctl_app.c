@@ -156,10 +156,13 @@ static void handle_service_requests(void)
             break;
             case IPC_CMD_SYS_CTL_SNVM_WRITE_REQ:
             {
-                uint8_t page = (uint8_t)seL4_GetMR(1);
-                uint8_t *usk = (uint8_t*)seL4_GetMR(2);
-                uint8_t *data = (uint8_t*)seL4_GetMR(3);
-                uint16_t length = (uint16_t)seL4_GetMR(4);
+                struct ree_tee_snvm_cmd *cmd = (struct ree_tee_snvm_cmd*)app_shared_memory;
+
+                uint8_t page = cmd->page_number;
+                uint8_t *usk = cmd->user_key;
+                uint8_t *data = cmd->data;
+                uint16_t length = cmd->snvm_length;
+
                 uint8_t mode = MSS_SYS_SNVM_NON_AUTHEN_TEXT_REQUEST_CMD;
 
                 if (length == 236) {
@@ -183,10 +186,13 @@ static void handle_service_requests(void)
             {
                 uint32_t *adminw;
                 uint8_t admin[4];
-                uint8_t page = (uint8_t)seL4_GetMR(1);
-                uint8_t *usk = (uint8_t*)seL4_GetMR(2);
-                uint8_t *data = (uint8_t*)seL4_GetMR(3);
-                uint16_t length = (uint16_t)seL4_GetMR(4);
+
+                struct ree_tee_snvm_cmd *cmd = (struct ree_tee_snvm_cmd *)app_shared_memory;
+
+                uint8_t page = cmd->page_number;
+                uint8_t *usk = cmd->user_key;
+                uint8_t *data = cmd->data;
+                uint16_t length = cmd->snvm_length;
 
                 if (length == 236) {
                     ZF_LOGI("sNVM Secure Read");
@@ -225,9 +231,13 @@ static void handle_service_requests(void)
             case IPC_CMD_SYS_CTL_PUF_REQ:
             {
                 ZF_LOGI("Puf request");
-                uint8_t *challenge = (uint8_t*)seL4_GetMR(1);
-                uint8_t opcode = (uint8_t)seL4_GetMR(2);
-                uint8_t *response = (uint8_t*)seL4_GetMR(3);
+
+                struct ree_tee_puf_cmd *cmd = (struct ree_tee_puf_cmd *)app_shared_memory;
+
+                uint8_t *challenge = cmd->request;
+                uint8_t opcode = cmd->opcode;
+                uint8_t *response = cmd->response;
+
                 ZF_LOGI("Puf request C=%p O=%d, R=%p", challenge, opcode, response );
 
                 int err = puf_emulation_service(challenge, opcode, response);
@@ -246,9 +256,13 @@ static void handle_service_requests(void)
             case IPC_CMD_SYS_CTL_SIGN_REQ:
             {
                 ZF_LOGI("Sign request");
-                uint8_t *hash = (uint8_t*)seL4_GetMR(1);
-                uint8_t format = (uint8_t)seL4_GetMR(2);
-                uint8_t *response = (uint8_t*)seL4_GetMR(3);
+
+                struct ree_tee_sign_cmd *cmd = (struct ree_tee_sign_cmd *)app_shared_memory;
+
+                uint8_t *hash = cmd->hash;
+                uint8_t format = cmd->format;
+                uint8_t *response = cmd->response;
+
                 ZF_LOGI("Sign request hash=%p format=%d, R=%p", hash, format, response );
 
                 int err = digital_signature_service(hash, format, response);
@@ -267,18 +281,26 @@ static void handle_service_requests(void)
             case IPC_CMD_KEY_CREATE_REQ:
             {
                 ZF_LOGI("Key blob generation request");
-                struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info*)seL4_GetMR(1);
-                struct ree_tee_key_data_storage *key_blob = (struct ree_tee_key_data_storage*)seL4_GetMR(2);
-                int max_key_blob_size = shared_memory_size - sizeof(struct ree_tee_key_data_storage);
+                struct ree_tee_key_info *keyinfo_ptr =
+                    (struct ree_tee_key_info*)app_shared_memory;
+
+                struct ree_tee_key_data_storage *key_blob =
+                    app_shared_memory + sizeof(struct ree_tee_key_info);
+
+                uintptr_t key_blob_off = (uintptr_t)key_blob - (uintptr_t)app_shared_memory;
+
+                int max_key_blob_size = shared_memory_size - sizeof(struct ree_tee_key_info);
 
                 int err = generate_key_pair(keyinfo_ptr, key_blob, max_key_blob_size);
 
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                 if (!err) {
+                    msg_info = seL4_MessageInfo_new(0, 0, 0, 2);
                     seL4_SetMR(0, IPC_CMD_KEY_CREATE_RESP);
+                    seL4_SetMR(1, key_blob_off);
                 }
                 else {
                     ZF_LOGI("Key create failed %d ", err);
+                    msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                     seL4_SetMR(0, IPC_CMD_SYS_FAIL);
                 }
                 seL4_Reply(msg_info);
@@ -287,32 +309,35 @@ static void handle_service_requests(void)
             case IPC_CMD_KEY_PUBEXT_REQ:
             {
                 ZF_LOGI("Public key extraction request");
-                uint8_t *key_data_ptr = (uint8_t*)seL4_GetMR(1);
-                uint32_t key_data_length = (uint32_t)seL4_GetMR(2);
-                uint8_t *guid_ptr = (uint8_t*)seL4_GetMR(3);
-                uint32_t client_id = (uint32_t)seL4_GetMR(4);
+
+                uint8_t *key_data_ptr = (uint8_t *)app_shared_memory;
+                uint32_t key_data_length = (uint32_t)seL4_GetMR(1);
+                uint8_t *guid_ptr = (uint8_t *)(app_shared_memory + seL4_GetMR(2));
+                uint32_t client_id = (uint32_t)seL4_GetMR(3);
+
                 struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info *)((uint8_t*)key_data_ptr + key_data_length);
+                uintptr_t keyinfo_off = (uintptr_t)keyinfo_ptr - (uintptr_t)app_shared_memory;
+
                 uint8_t *pubkey_ptr = (uint8_t*)keyinfo_ptr + sizeof(struct ree_tee_key_info);
+                uintptr_t pubkey_off = (uintptr_t)pubkey_ptr - (uintptr_t)app_shared_memory;
+
                 uint32_t max_size = shared_memory_size - (pubkey_ptr - (uint8_t*)app_shared_memory);
                 ZF_LOGI("Max size %u clientid %u", max_size,client_id);
 
-
                 int err = extract_public_key(key_data_ptr, key_data_length, guid_ptr, client_id, keyinfo_ptr, pubkey_ptr, max_size);
 
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 3);
                 if (!err) {
+                    msg_info = seL4_MessageInfo_new(0, 0, 0, 3);
                     seL4_SetMR(0, IPC_CMD_KEY_PUBEXT_RESP);
-                    seL4_SetMR(1, (seL4_Word)keyinfo_ptr);
-                    seL4_SetMR(2, (seL4_Word)pubkey_ptr);
+                    seL4_SetMR(1, (seL4_Word)keyinfo_off);
+                    seL4_SetMR(2, (seL4_Word)pubkey_off);
                 }
                 else {
                     ZF_LOGI("Key extraction failed %d ", err);
+                    msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                     seL4_SetMR(0, IPC_CMD_SYS_FAIL);
                 }
                 seL4_Reply(msg_info);
-
-
-
             }
             break;
             default:

@@ -277,8 +277,6 @@ static int handle_ree_msg(int32_t recv)
         break;
         case REE_TEE_SNVM_WRITE_REQ:
         {
-            struct ree_tee_snvm_cmd *cmd = (struct ree_tee_snvm_cmd *)ree_msg_buf;
-
             if (recv != sizeof(struct ree_tee_snvm_cmd)) {
 
                 ZF_LOGI("Invalid Message size");
@@ -288,15 +286,10 @@ static int handle_ree_msg(int32_t recv)
                 /* copy  message to shared buffer */
                 memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_snvm_cmd));
                 /* Sens msg to sys app */
-                cmd =  (struct ree_tee_snvm_cmd *)app_shared_memory;
                 ZF_LOGI("Send msg to sys app...");
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
                 seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_WRITE_REQ);
-                seL4_SetMR(1, (seL4_Word)cmd->page_number);
-                seL4_SetMR(2, (seL4_Word)cmd->user_key);
-                seL4_SetMR(3, (seL4_Word)cmd->data);
-                seL4_SetMR(4, (seL4_Word)cmd->snvm_length);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -330,13 +323,9 @@ static int handle_ree_msg(int32_t recv)
                 memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_snvm_cmd));
                 /* req point to shared memory */
                 ZF_LOGI("Send msg to sys app...");
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
                 seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_READ_REQ);
-                seL4_SetMR(1, (seL4_Word)ipc->page_number);
-                seL4_SetMR(2, (seL4_Word)ipc->user_key);
-                seL4_SetMR(3, (seL4_Word)ipc->data);
-                seL4_SetMR(4, (seL4_Word)ipc->snvm_length);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -412,12 +401,9 @@ static int handle_ree_msg(int32_t recv)
                 memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_puf_cmd));
 
                 ZF_LOGI("Send msg to sys app...");
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
                 seL4_SetMR(0, IPC_CMD_SYS_CTL_PUF_REQ);
-                seL4_SetMR(1, (seL4_Word)ipc->request);
-                seL4_SetMR(2, (seL4_Word)ipc->opcode);
-                seL4_SetMR(3, (seL4_Word)ipc->response);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -460,12 +446,9 @@ static int handle_ree_msg(int32_t recv)
                 memcpy(app_shared_memory, ree_msg_buf, sizeof(struct ree_tee_sign_cmd));
 
                 ZF_LOGI("Send msg to sys app...");
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
                 seL4_SetMR(0, IPC_CMD_SYS_CTL_SIGN_REQ);
-                seL4_SetMR(1, (seL4_Word)ipc->hash);
-                seL4_SetMR(2, (seL4_Word)ipc->format);
-                seL4_SetMR(3, (seL4_Word)ipc->response);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -544,9 +527,6 @@ static int handle_ree_msg(int32_t recv)
              - sizeof(struct ree_tee_key_req_cmd)
              - sizeof(struct ree_tee_key_resp_cmd));
 
-
-
-
             if (recv != sizeof(struct ree_tee_key_req_cmd)) {
                 ZF_LOGI("Invalid Message size");
                 SET_REE_HDR(hdr, REE_TEE_GEN_KEY_RESP, TEE_INVALID_MSG_SIZE,
@@ -554,22 +534,26 @@ static int handle_ree_msg(int32_t recv)
             } else {
                 ZF_LOGI("Generate keypair blob...%s", cmd->key_req_info.name);
 
-                struct ree_tee_key_info  *keyinfo_ptr = (struct ree_tee_key_info*)app_shared_memory;
+                struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info*)app_shared_memory;
                 memcpy(keyinfo_ptr, &cmd->key_req_info, sizeof(struct ree_tee_key_info));
 
-                struct ree_tee_key_data_storage *keyblob = (struct ree_tee_key_data_storage *)((uint8_t*)app_shared_memory + sizeof(struct ree_tee_key_info));
                 /* use key service to generate keys*/
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 3);
+                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                 seL4_SetMR(0, IPC_CMD_KEY_CREATE_REQ);
-                seL4_SetMR(1, (seL4_Word)keyinfo_ptr);
-                seL4_SetMR(2, (seL4_Word)keyblob);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
                 msg_len = seL4_MessageInfo_get_length(msg_info);
-                if (msg_len > 0) {
-                    msg_data = seL4_GetMR(0);
+                if (msg_len != 2) {
+                    SET_REE_HDR(hdr, REE_TEE_GEN_KEY_RESP, TEE_IPC_CMD_ERR,
+                                REE_HDR_LEN);
+                    break;
                 }
+
+                msg_data = seL4_GetMR(0);
+
+                struct ree_tee_key_data_storage *keyblob = (struct ree_tee_key_data_storage *)((uint8_t*)app_shared_memory + seL4_GetMR(1));
+
                 if ((msg_data == IPC_CMD_KEY_CREATE_RESP) && (keyblob->storage_size < max_keyblob_size))
                 {
                     memcpy(&resp->key_data, keyblob, keyblob->storage_size );
@@ -613,6 +597,8 @@ static int handle_ree_msg(int32_t recv)
             /* Copy parameters to shared ram */
             uint8_t *keyblob_ptr = (uint8_t*)app_shared_memory;
             uint8_t *guid_ptr =  (uint8_t*)app_shared_memory + key_blob_size;
+            uintptr_t guid_off = (uintptr_t)guid_ptr - (uintptr_t)app_shared_memory;
+
             memcpy(keyblob_ptr, &cmd->crypted_key_data[0], key_blob_size);
             memcpy(guid_ptr, cmd->guid, 32);
 
@@ -622,13 +608,12 @@ static int handle_ree_msg(int32_t recv)
                             REE_HDR_LEN);
             } else {
                 ZF_LOGI("Extract Public key..");
-                 msg_info = seL4_MessageInfo_new(0, 0, 0, 5);
+                 msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
 
                 seL4_SetMR(0, IPC_CMD_KEY_PUBEXT_REQ);
-                seL4_SetMR(1, (seL4_Word)keyblob_ptr);
-                seL4_SetMR(2, (seL4_Word)key_blob_size);
-                seL4_SetMR(3, (seL4_Word)guid_ptr);
-                seL4_SetMR(4, (seL4_Word)cmd->client_id);
+                seL4_SetMR(1, (seL4_Word)key_blob_size);
+                seL4_SetMR(2, (seL4_Word)guid_off);
+                seL4_SetMR(3, (seL4_Word)cmd->client_id);
 
                 msg_info = seL4_Call(ipc_app_ep1, msg_info);
 
@@ -639,8 +624,10 @@ static int handle_ree_msg(int32_t recv)
                 }
                 if (msg_data == IPC_CMD_KEY_PUBEXT_RESP)
                 {
-                    struct ree_tee_key_info *key_info_ptr = (struct ree_tee_key_info*)seL4_GetMR(1);
-                    uint8_t *pubkey_ptr = (uint8_t*)seL4_GetMR(2);
+                    struct ree_tee_key_info *key_info_ptr = 
+                        (struct ree_tee_key_info *)(app_shared_memory + seL4_GetMR(1));
+
+                    uint8_t *pubkey_ptr = (uint8_t *)(app_shared_memory + seL4_GetMR(2));
 
                     /* copy data to response struct*/
 

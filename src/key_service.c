@@ -45,14 +45,14 @@ static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint
 
 int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_storage *payload, uint32_t max_size)
 {
-
+    int err = -1;
 
     ZF_LOGI("Generate keypair file, format = %d", key_req->format);
     switch (key_req->format)
     {
         case KEY_RSA:
         {
-           /* generate Guid from system controller*/
+            /* generate Guid from system controller*/
             nonce_service(key_req->guid);
 
             /* Use hard coded key for now */
@@ -81,16 +81,17 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             /*Update length to request struct*/
             key_req->pubkey_length = payload->key_info.pubkey_length;
             key_req->privkey_length = payload->key_info.privkey_length;
-        }
-            break;
 
+            err = 0;
+            break;
+        }
         default:
             ZF_LOGI("Invalid KEY format %d", key_req->format);
+            err = -EINVAL;
             break;
     }
-    return 0;
 
-
+    return err;
 }
 
 
