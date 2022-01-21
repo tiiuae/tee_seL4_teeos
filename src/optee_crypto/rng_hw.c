@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
-/* Copyright (c) 2018, Linaro Limited */
+/* Copyright (c) 2018, Linaro Limited 
+ * Copyright (c) 2022, Unikie
+ */
 
 #include <compiler.h>
 #include <crypto/crypto.h>

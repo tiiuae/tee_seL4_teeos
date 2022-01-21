@@ -19,6 +19,7 @@ ${OPTEE_SRC_FOLDER}/core/crypto/sm4-cbc.c
 ${OPTEE_SRC_FOLDER}/core/crypto/sm4-ctr.c
 ${OPTEE_SRC_FOLDER}/core/crypto/sm4-ecb.c
 rng_hw.c
+sys.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/hash.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/hmac.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/cmac.c
@@ -42,6 +43,11 @@ ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_concat_kdf.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_pbkdf2.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_hkdf.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_utl.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_fs_key_manager.c
+${OPTEE_SRC_FOLDER}/core/kernel/huk_subkey.c
+${OPTEE_SRC_FOLDER}/lib/libutils/ext/trace.c
+${OPTEE_SRC_FOLDER}/lib/libutils/ext/snprintk.c
+${OPTEE_SRC_FOLDER}/lib/libutils/ext/consttime_memcmp.c
 )
 
 
@@ -97,6 +103,9 @@ target_compile_definitions(opteecrypt PUBLIC
  _CFG_CORE_LTC_SHA512
  _CFG_CORE_LTC_BIGNUM_MAX_BITS=4096
  CFG_CRYPTOLIB_NAME_tomcrypt
+ CFG_MSG_LONG_PREFIX_MASK=0x1a
+ CFG_TEE_CORE_LOG_LEVEL=4
+TRACE_LEVEL=4
  )
 
 target_link_libraries(opteecrypt
