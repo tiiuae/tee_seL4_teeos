@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#ifndef _REE_TEE_MSG_H_
+#define _REE_TEE_MSG_H_
+
 #define RNG_SIZE_IN_BYTES 32
 #define SNVM_PAGE_LENGTH  252
 #define USER_KEY_LENGTH   12
@@ -37,7 +40,7 @@ enum ree_tee_msg {
     REE_TEE_GEN_KEY_RESP,
     REE_TEE_EXT_PUBKEY_REQ,
     REE_TEE_EXT_PUBKEY_RESP,
-    INVALID = -1,
+    REE_TEE_INVALID = -1,
 };
 
 enum tee_status {
@@ -45,6 +48,7 @@ enum tee_status {
     TEE_UNKNOWN_MSG,
     TEE_INVALID_MSG_SIZE,
     TEE_IPC_CMD_ERR,
+    TEE_OUT_OF_MEMORY,
     TEE_OK = 1,
 };
 
@@ -160,3 +164,5 @@ struct ree_tee_pub_key_resp_cmd
     struct ree_tee_key_info key_info;
     uint8_t pubkey[0];
 };
+
+#endif /* _REE_TEE_MSG_H_ */

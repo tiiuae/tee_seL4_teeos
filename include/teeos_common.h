@@ -76,7 +76,8 @@ struct ipc_msg_ch_addr {
     seL4_Word ree2tee_len;      /* Buffer length */
     seL4_Word tee2ree;          /* TEE->REE circular buffer*/
     seL4_Word tee2ree_len;      /* Buffer length */
-    seL4_Word shared_memory;
+    seL4_Word shared_memory;    /* Shared memory for applications */
+    seL4_Word shared_len;       /* Shared memory length */
 
 };
 
@@ -96,7 +97,8 @@ struct ipc_msg_cys_ctl_addr {
     seL4_Word mbox_base;         /* mailbox base address */
     seL4_Word mbox_len;          /* mailbox length (2k) */
     seL4_Word msg_int_reg;       /* message interrupt register */
-    seL4_Word shared_memory;
+    seL4_Word shared_memory;     /* Shared memory for applications */
+    seL4_Word shared_len;        /* Shared memory length */
 };
 
 struct ipc_msg_app_ep {

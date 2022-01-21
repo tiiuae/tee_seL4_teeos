@@ -29,11 +29,11 @@
 #include <crypto/crypto.h>
 #include <tomcrypt_init.h>
 
-seL4_CPtr ipc_root_ep = 0;
-seL4_CPtr ipc_app_ep1 = 0;
+static seL4_CPtr ipc_root_ep = 0;
+static seL4_CPtr ipc_app_ep1 = 0;
 
-void *app_shared_memory;
-uint32_t shared_memory_size = 32768; //TODO, get real size from rootserver
+static void *app_shared_memory;
+static uint32_t shared_memory_size;
 
 static int setup_sys_ctl_io(void)
 {
@@ -65,6 +65,7 @@ static int setup_sys_ctl_io(void)
     mbox_base = (uint32_t *)ipc_resp.mbox_base;
     msg_int_reg = (uint32_t *)ipc_resp.msg_int_reg;
     app_shared_memory = (void*)ipc_resp.shared_memory;
+    shared_memory_size = ipc_resp.shared_len;
 
     ZF_LOGI("System controll addresses: Regbase %p  Mbox base %p Msg_int_reg %p ", sys_reg_base, mbox_base, msg_int_reg);
     set_sys_ctl_address(sys_reg_base, mbox_base, msg_int_reg);

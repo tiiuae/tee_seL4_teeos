@@ -72,6 +72,7 @@ struct app_env {
     seL4_Word badge;
     seL4_CPtr app_ep1;
     void *shared_mem;
+    uint32_t shared_len;
 };
 
 struct root_env {
@@ -236,7 +237,9 @@ static int create_shared_buffer(struct root_env *ctx, struct app_env *app_1, str
 
     /* share memory to applications */
     app_1->shared_mem = vspace_share_mem(&ctx->vspace, &app_1->app_proc.vspace, root_vaddr, SHARED_MEM_PAGE_COUNT, PAGE_BITS_4K, seL4_AllRights, 1 );
+    app_1->shared_len = SIZE_BITS_TO_BYTES(seL4_PageBits) * SHARED_MEM_PAGE_COUNT;
     app_2->shared_mem = vspace_share_mem(&ctx->vspace, &app_2->app_proc.vspace, root_vaddr, SHARED_MEM_PAGE_COUNT, PAGE_BITS_4K, seL4_AllRights, 1 );
+    app_2->shared_len = SIZE_BITS_TO_BYTES(seL4_PageBits) * SHARED_MEM_PAGE_COUNT;
 
     if ((!app_1->shared_mem)||(!app_2->shared_mem))
     {
@@ -425,6 +428,7 @@ static void send_comm_ch_addr(struct root_env *ctx)
         .tee2ree = (uintptr_t)ctx->comm_ch[COMM_CH_TEE2REE].app_addr,
         .tee2ree_len = ctx->comm_ch[COMM_CH_REE2TEE].len,
         .shared_memory = (uintptr_t)ctx->comm_app.shared_mem,
+        .shared_len = ctx->comm_app.shared_len,
     };
 
     const uint32_t msg_words = IPC_CMD_WORDS(ch_addr);
@@ -474,6 +478,7 @@ static int send_sys_ctl_addr(struct root_env *ctx)
         .mbox_len = 0x800,
         .msg_int_reg = (uintptr_t)(ctx->sysregcb.app_addr + 0x18C),
         .shared_memory = (uintptr_t)ctx->sys_app.shared_mem,
+        .shared_len = ctx->sys_app.shared_len,
     };
 
     const uint32_t msg_words = IPC_CMD_WORDS(sys_ctl_addr);

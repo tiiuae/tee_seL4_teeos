@@ -31,3 +31,5 @@ struct sel4_rpmsg_config {
 
 int rpmsg_create_sel4_ept(struct sel4_rpmsg_config *config);
 int rpmsg_announce_sel4_ept();
+int rpmsg_wait_ree_msg(char **msg, uint32_t *msg_len);
+int rpmsg_send_ree_msg(char *msg, uint32_t msg_len);
