@@ -55,6 +55,9 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             /* generate Guid from system controller*/
             nonce_service(key_req->guid);
 
+            /* Copy keyinfo fields from req */
+            memcpy(&payload->key_info, key_req, sizeof(struct ree_tee_key_info));
+
             /* Use hard coded key for now */
             payload->key_info.pubkey_length = sizeof(public_key_pem);
             payload->key_info.privkey_length = sizeof(cert_pem);
@@ -74,9 +77,6 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             ZF_LOGI("Private key Length = %u...", payload->key_info.privkey_length);
             memcpy(&payload->keys[payload->key_info.pubkey_length], cert_pem, payload->key_info.privkey_length);
             payload->key_info.key_nbits = key_req->key_nbits;
-
-            /* copy uid */
-            memcpy(payload->key_info.guid, key_req->guid, 32);
 
             /*Update length to request struct*/
             key_req->pubkey_length = payload->key_info.pubkey_length;
@@ -107,8 +107,10 @@ int extract_public_key(uint8_t *key_data, uint32_t key_data_length, uint8_t *gui
 
     /* Check Client id*/
 
-    if (clientid != payload->key_info.client_id)
-        return -EINVAL;
+    if (clientid != payload->key_info.client_id) {
+        ZF_LOGE("ERROR clientid mismatch: %d (%d)", payload->key_info.client_id, clientid);
+        return -ENXIO;
+    }
 
     if (sizeof(struct ree_tee_key_data_storage) + payload->key_info.pubkey_length > max_size)
         return -ENOMEM;
