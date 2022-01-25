@@ -25,10 +25,6 @@
 #include <utils/fence.h>
 #include <utils/zf_log.h>
 
-#include <platsupport/sync/spinlock.h>
-#include <utils/arith.h>
-#include "sel4_circ.h"
-
 #include "rpmsg_sel4.h"
 
 static seL4_CPtr ipc_root_ep = 0;
@@ -37,9 +33,6 @@ static void *app_shared_memory;
 static uint32_t app_shared_len = 0;
 
 struct comm_ch {
-    struct tee_comm_ch ree2tee;
-    struct tee_comm_ch tee2ree;
-
     struct sel4_rpmsg_config rpmsg_conf;
 };
 
@@ -106,8 +99,6 @@ static int setup_comm_ch(void)
     const uint32_t RESP_WORDS = IPC_CMD_WORDS(ipc_resp);
     seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
 
-    struct tee_comm_ctrl *ch_ctrl = 0;
-
     ZF_LOGI("seL4_Call: IPC_CMD_CH_ADDR_REQ");
 
     error = ipc_msg_call(IPC_CMD_CH_ADDR_REQ,
@@ -125,40 +116,8 @@ static int setup_comm_ch(void)
         return -EPERM;
     }
 
-    if (ipc_resp.ctrl_len < (sizeof(struct tee_comm_ctrl) * 2)) {
-        ZF_LOGF("ctrl len: %ld", ipc_resp.ctrl_len);
-        return -ENOBUFS;
-    }
     app_shared_memory = (void *)ipc_resp.shared_memory;
     app_shared_len = ipc_resp.shared_len;
-
-    ch_ctrl = (struct tee_comm_ctrl *)ipc_resp.ctrl;
-
-    comm.ree2tee.ctrl = &ch_ctrl[COMM_CH_REE2TEE];
-    comm.ree2tee.buf_len = ipc_resp.ree2tee_len;
-    comm.ree2tee.buf = (char *)ipc_resp.ree2tee;
-
-    comm.tee2ree.ctrl = &ch_ctrl[COMM_CH_TEE2REE];
-    comm.tee2ree.buf_len = ipc_resp.tee2ree_len;
-    comm.tee2ree.buf = (char *)ipc_resp.tee2ree;
-
-    /* writer initializes channel */
-    memset(comm.tee2ree.buf, 0x0, comm.tee2ree.buf_len);
-
-    comm.tee2ree.ctrl->head = 0;
-    comm.tee2ree.ctrl->tail = 0;
-
-    /* Magic inidicates channel setup is ready. Compiler fence ensures
-     * magic writing happens after init */
-    COMPILER_MEMORY_RELEASE();
-    comm.tee2ree.ctrl->tee_magic = COMM_MAGIC_TEE;
-    comm.ree2tee.ctrl->tee_magic = COMM_MAGIC_TEE;
-
-    ZF_LOGI("ch: ree2tee.ctrl [%p], buf [%p]", comm.ree2tee.ctrl,
-            comm.ree2tee.buf);
-
-    ZF_LOGI("ch: tee2ree.ctrl [%p], buf [%p]", comm.tee2ree.ctrl,
-            comm.tee2ree.buf);
 
     return 0;
 }
@@ -236,31 +195,6 @@ static int setup_app_ep(void)
 
     return 0;
 }
-
-static int wait_ree_setup()
-{
-    uint32_t tee2ree_magic = comm.ree2tee.ctrl->ree_magic;
-    uint32_t ree2tee_magic = comm.tee2ree.ctrl->ree_magic;
-
-    ZF_LOGI("waiting REE magic...");
-    /* wait until REE writes magic to both channels */
-    while (tee2ree_magic != COMM_MAGIC_REE || tee2ree_magic != ree2tee_magic) {
-        /* atomic load to prevent compiler optimization with
-           while loop comparison */
-        tee2ree_magic =
-            __atomic_load_n(&comm.tee2ree.ctrl->ree_magic, __ATOMIC_RELAXED);
-        ree2tee_magic =
-            __atomic_load_n(&comm.ree2tee.ctrl->ree_magic, __ATOMIC_RELAXED);
-
-        seL4_Yield();
-    }
-
-    ZF_LOGI("REE comm ready");
-
-    return 0;
-}
-
-
 
 /* ree_tee_msg_fn:
  *     For succesfull operation function allocates memory for reply_msg.
@@ -1181,7 +1115,7 @@ int main(int argc, char **argv)
 
     ZF_LOGI("ipc_root_ep: %p", (void *)ipc_root_ep);
 
-    /* Wait shared memory config from rootserver and init tee2ree channel */
+    /* Wait app shared memory config from rootserver */
     error = setup_comm_ch();
     if (error) {
         return error;
@@ -1203,12 +1137,6 @@ int main(int argc, char **argv)
 
     /* Create RPMSG remote endpoint and wait for master to come online */
     error = rpmsg_create_sel4_ept(&comm.rpmsg_conf);
-    if (error) {
-        return error;
-    }
-
-    /* Wait linux to init ree2tee channel */
-    error = wait_ree_setup();
     if (error) {
         return error;
     }

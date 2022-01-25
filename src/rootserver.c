@@ -43,9 +43,6 @@
 
 #define MEM_CACHED                      1
 
-#define FDT_PATH_CTRL                   "/teeos_comm/ctrl"
-#define FDT_PATH_REE2TEE                "/teeos_comm/ree2tee"
-#define FDT_PATH_TEE2REE                "/teeos_comm/tee2ree"
 #define FDT_PATH_MBOX                   "/mailbox"
 #define FDT_PATH_SYSREGCB               "/sysregscb"
 #define FDT_PATH_RPMSG                  "/rpmsg"
@@ -86,8 +83,6 @@ struct root_env {
 
     ps_io_ops_t ops;
 
-    struct fdt_config ch_ctrl;
-    struct fdt_config comm_ch[COMM_CH_COUNT];
     struct fdt_config mbox;
     struct fdt_config sysregcb;
     struct fdt_config rpmsg_vring;
@@ -337,52 +332,6 @@ static int map_from_fdt(struct root_env *ctx, struct fdt_cb_token *token, sel4ut
     return err;
 }
 
-static int map_ree_comm_ch(struct root_env *ctx)
-{
-    int err = -1;
-    struct fdt_cb_token fdt_token = {
-        .ctx = ctx,
-    };
-
-    /* Separate shared area reserved for ring buffer status data */
-    fdt_token.fdt_path = FDT_PATH_CTRL;
-    fdt_token.config = &ctx->ch_ctrl;
-    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
-    if (err) {
-        return err;
-    }
-
-    ZF_LOGI("ctrl    %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
-            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
-            (void *)fdt_token.config->root_addr);
-
-    /* REE -> TEE */
-    fdt_token.fdt_path = FDT_PATH_REE2TEE;
-    fdt_token.config = &ctx->comm_ch[COMM_CH_REE2TEE];
-    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
-    if (err) {
-        return err;
-    }
-
-    ZF_LOGI("ree2tee %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
-            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
-            (void *)fdt_token.config->root_addr);
-
-    /* TEE -> REE */
-    fdt_token.fdt_path = FDT_PATH_TEE2REE;
-    fdt_token.config = &ctx->comm_ch[COMM_CH_TEE2REE];
-    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
-    if (err) {
-        return err;
-    }
-
-    ZF_LOGI("tee2ree %p - %p, vaddr %p", (void *)fdt_token.config->paddr,
-            (void *)(fdt_token.config->paddr + fdt_token.config->len - 1),
-            (void *)fdt_token.config->root_addr);
-
-    return err;
-}
-
 static int map_sysctl(struct root_env *ctx)
 {
     int err = -1;
@@ -421,12 +370,6 @@ static void send_comm_ch_addr(struct root_env *ctx)
 {
     struct ipc_msg_ch_addr ch_addr = {
         .cmd_id = IPC_CMD_CH_ADDR_RESP,
-        .ctrl = (uintptr_t)ctx->ch_ctrl.app_addr,
-        .ctrl_len = ctx->ch_ctrl.len,
-        .ree2tee = (uintptr_t)ctx->comm_ch[COMM_CH_REE2TEE].app_addr,
-        .ree2tee_len = ctx->comm_ch[COMM_CH_REE2TEE].len,
-        .tee2ree = (uintptr_t)ctx->comm_ch[COMM_CH_TEE2REE].app_addr,
-        .tee2ree_len = ctx->comm_ch[COMM_CH_REE2TEE].len,
         .shared_memory = (uintptr_t)ctx->comm_app.shared_mem,
         .shared_len = ctx->comm_app.shared_len,
     };
@@ -821,12 +764,6 @@ int main(void)
     }
 
     err = create_shared_buffer(ctx, &ctx->comm_app, &ctx->sys_app);
-    if (err) {
-        return err;
-    }
-
-    /* Map REE communication channels */
-    err = map_ree_comm_ch(ctx);
     if (err) {
         return err;
     }
