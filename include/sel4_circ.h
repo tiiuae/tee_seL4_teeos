@@ -27,10 +27,17 @@
 
 #define min(a,b)    MIN(a,b)
 
+struct circ_ctx {
+    int32_t head;
+    int32_t tail;
+    int32_t buf_len;
+    char *buf;
+};
+
 /*
  * Design copied from producer example: linux/Documentation/core-api/circular-buffers.rst
  */
-static inline int sel4_write_to_circ(struct tee_comm_ch *circ, int32_t data_len,
+static inline int sel4_write_to_circ(struct circ_ctx *ctx, int32_t data_len,
                        const char *data_in, void *writer_lock)
 {
     int ret = -ENOSPC;
@@ -42,31 +49,31 @@ static inline int sel4_write_to_circ(struct tee_comm_ch *circ, int32_t data_len,
 
     spin_lock(writer_lock);
 
-    head = circ->ctrl->head;
+    head = ctx->head;
 
     /* The spin_unlock() and next spin_lock() provide needed ordering. */
-    tail = READ_ONCE(circ->ctrl->tail);
+    tail = READ_ONCE(ctx->tail);
 
     /* Shrink consecutive writes to the buffer end */
-    buf_end = CIRC_SPACE_TO_END(head, tail, circ->buf_len);
+    buf_end = CIRC_SPACE_TO_END(head, tail, ctx->buf_len);
     write_ph1 = min(buf_end, data_len);
 
     /* Remaining data if wrap needed, otherwise zero */
     wrap = data_len - write_ph1;
 
-    if (CIRC_SPACE(head, tail, circ->buf_len) >= data_len) {
-        memcpy(&circ->buf[head], data_in, write_ph1);
+    if (CIRC_SPACE(head, tail, ctx->buf_len) >= data_len) {
+        memcpy(&ctx->buf[head], data_in, write_ph1);
 
         /* Head will be automatically rolled back to the beginning of the buffer */
-        head = (head + write_ph1) & (circ->buf_len - 1);
+        head = (head + write_ph1) & (ctx->buf_len - 1);
 
         if (wrap) {
-            memcpy(&circ->buf[head], &data_in[write_ph1], wrap);
-            head = (head + wrap) & (circ->buf_len - 1);
+            memcpy(&ctx->buf[head], &data_in[write_ph1], wrap);
+            head = (head + wrap) & (ctx->buf_len - 1);
         }
 
         /* update the head after buffer write */
-        smp_store_release(&circ->ctrl->head, head);
+        smp_store_release(&ctx->head, head);
 
         /* TODO: wakeup reader */
         ret = 0;
@@ -80,7 +87,7 @@ static inline int sel4_write_to_circ(struct tee_comm_ch *circ, int32_t data_len,
 /*
  * Design copied from consumer example: linux/Documentation/core-api/circular-buffers.rst
  */
-static inline int sel4_read_from_circ(struct tee_comm_ch *circ, int32_t out_len,
+static inline int sel4_read_from_circ(struct circ_ctx *ctx, int32_t out_len,
                         char *out_buf, int32_t *read_len, void *reader_lock)
 {
     int ret = -ENODATA;
@@ -94,14 +101,14 @@ static inline int sel4_read_from_circ(struct tee_comm_ch *circ, int32_t out_len,
     spin_lock(reader_lock);
 
     /* Read index before reading contents at that index. */
-    head = smp_load_acquire(&circ->ctrl->head);
-    tail = circ->ctrl->tail;
+    head = smp_load_acquire(&ctx->head);
+    tail = ctx->tail;
 
     /* Shrink read length to output buffer size */
-    available = min(out_len, CIRC_CNT(head, tail, circ->buf_len));
+    available = min(out_len, CIRC_CNT(head, tail, ctx->buf_len));
 
     /* Shrink consecutive reads to the buffer end */
-    buf_end = CIRC_CNT_TO_END(head, tail, circ->buf_len);
+    buf_end = CIRC_CNT_TO_END(head, tail, ctx->buf_len);
     read_ph1 = min(available, buf_end);
 
     /* Remaining data if wrap needed, otherwise zero */
@@ -110,19 +117,19 @@ static inline int sel4_read_from_circ(struct tee_comm_ch *circ, int32_t out_len,
     *read_len = 0;
 
     if (available >= 1) {
-        memcpy(out_buf, &circ->buf[tail], read_ph1);
-        tail = (tail + read_ph1) & (circ->buf_len - 1);
+        memcpy(out_buf, &ctx->buf[tail], read_ph1);
+        tail = (tail + read_ph1) & (ctx->buf_len - 1);
 
         *read_len = read_ph1;
 
         if (wrap) {
-            memcpy(&out_buf[read_ph1], &circ->buf[tail], wrap);
-            tail = (tail + wrap) & (circ->buf_len - 1);
+            memcpy(&out_buf[read_ph1], &ctx->buf[tail], wrap);
+            tail = (tail + wrap) & (ctx->buf_len - 1);
             *read_len += wrap;
         }
 
         /* Finish reading descriptor before incrementing tail. */
-        smp_store_release(&circ->ctrl->tail, tail);
+        smp_store_release(&ctx->tail, tail);
 
         ret = 0;
     }

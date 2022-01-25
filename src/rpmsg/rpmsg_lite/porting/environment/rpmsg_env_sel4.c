@@ -85,8 +85,7 @@ static struct isr_info isr_table[ISR_COUNT];
 
 /* Circular buffer config & control */
 struct queue_ctx {
-    struct tee_comm_ch circ_config;
-    struct tee_comm_ctrl ctrl_reserved;  /* used by circ_config */
+    struct circ_ctx circ;
     sync_spinlock_t writer_lock;
     sync_spinlock_t reader_lock;
     int32_t element_size;
@@ -448,12 +447,9 @@ int32_t env_create_queue(void **queue, int32_t length, int32_t element_size)
      * also aligns the following struct */
     ctx = ctx_buf + queue_bytes;
 
-    /* ctx reserves space for ctrl struct */
-    ctx->circ_config.ctrl = &ctx->ctrl_reserved;
-
     /* link actual CIRC buffer to ctrl*/
-    ctx->circ_config.buf = ctx_buf;
-    ctx->circ_config.buf_len = queue_bytes;
+    ctx->circ.buf = ctx_buf;
+    ctx->circ.buf_len = queue_bytes;
 
     ctx->element_size = element_size;
 
@@ -495,7 +491,7 @@ int32_t env_put_queue(void *queue, void *msg, uint32_t timeout_ms)
     struct queue_ctx *ctx = (struct queue_ctx *)queue;
     int ret = -1;
 
-    if (sel4_write_to_circ(&ctx->circ_config,
+    if (sel4_write_to_circ(&ctx->circ,
                        ctx->element_size,
                        (char *)msg,
                        &ctx->writer_lock)) {
@@ -527,7 +523,7 @@ int32_t env_get_queue(void *queue, void *msg, uint32_t timeout_ms)
 
     UNUSED_VAR(timeout_ms);
 
-    if (sel4_read_from_circ(&ctx->circ_config,
+    if (sel4_read_from_circ(&ctx->circ,
                             ctx->element_size,
                             (char*)msg,
                             &read_len,
