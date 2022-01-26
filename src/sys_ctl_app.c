@@ -29,6 +29,19 @@
 #include <crypto/crypto.h>
 #include <tomcrypt_init.h>
 
+struct sel4_ipc_call_data {
+    uint32_t len;
+    seL4_Word *buf;
+};
+
+#define SET_IPC_CMD_TYPE(ipc_data_ptr, cmd) \
+    do {                                    \
+        (ipc_data_ptr)->len = 1;            \
+        (ipc_data_ptr)->buf[0] = cmd;       \
+    } while (0)
+
+#define SET_IPC_SYS_FAIL(ipc_data_ptr) SET_IPC_CMD_TYPE(ipc_data_ptr, IPC_CMD_SYS_FAIL)
+
 static seL4_CPtr ipc_root_ep = 0;
 static seL4_CPtr ipc_app_ep1 = 0;
 
@@ -105,21 +118,45 @@ static void handle_service_requests(void)
     seL4_MessageInfo_t msg_info = {0};
     seL4_Word msg_len = 0;
     seL4_Word sender_badge = 0;
-    seL4_Word msg_data = 0;
+
+    /* malloc size in bytes */
+    seL4_Word *sel4_ipc_buf = malloc(seL4_MsgMaxLength * sizeof(seL4_Word) * 2);
+
+    struct sel4_ipc_call_data sel4_ipc_recv = {
+        .len = 0,
+        .buf = sel4_ipc_buf,
+    };
+
+    struct sel4_ipc_call_data sel4_ipc_reply = { 
+        .len = 0,
+        .buf = sel4_ipc_buf + seL4_MsgMaxLength, /* offset of seL4_Words */
+    };
+
+    if (!sel4_ipc_buf) {
+        ZF_LOGF("Out of memory");
+        return;
+    }
 
     while(1)
     {
         ZF_LOGI("Wait msg from comm app...");
         msg_info = seL4_Recv(ipc_app_ep1, &sender_badge);
-        msg_len = seL4_MessageInfo_get_length(msg_info);
+        sel4_ipc_recv.len = seL4_MessageInfo_get_length(msg_info);
 
-        if (msg_len > 0) {
-            msg_data = seL4_GetMR(0);
+        if (sel4_ipc_recv.len == 0) {
+            ZF_LOGE("ERROR empty ipc");
+
+            /* Force error reply */
+            sel4_ipc_recv.buf[0] = IPC_CMD_EMPTY;
         }
 
-        ZF_LOGI("msg from 0x%lx (%ld) 0x%lx", sender_badge, msg_len, msg_data);
+        for (uint32_t i = 0; i < sel4_ipc_recv.len; i++) {
+            sel4_ipc_recv.buf[i] = seL4_GetMR(i);
+        }
 
-        switch (msg_data)
+        ZF_LOGI("msg from 0x%lx (%ld) 0x%lx", sender_badge, msg_len, sel4_ipc_recv.buf[0]);
+
+        switch (sel4_ipc_recv.buf[0])
         {
             case IPC_CMD_SYS_CTL_RNG_REQ:
             {
@@ -127,13 +164,12 @@ static void handle_service_requests(void)
                 memset(app_shared_memory,0,32);
                 int err = nonce_service(app_shared_memory);
                 if (!err) {
-                    seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_RESP);
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_SYS_CTL_RNG_RESP);
                 }
                 else {
                     ZF_LOGI("RNG service failed");
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_SYS_CTL_NVM_PARAM_REQ:
@@ -142,13 +178,12 @@ static void handle_service_requests(void)
                 memset(app_shared_memory,0, 256);
                 int err = read_nvm_parameters(app_shared_memory);
                 if (!err) {
-                    seL4_SetMR(0, IPC_CMD_SYS_CTL_NVM_PARAM_RESP);
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_SYS_CTL_NVM_PARAM_RESP);
                 }
                 else {
                     ZF_LOGI("Nvm param request failed");
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_SYS_CTL_SNVM_WRITE_REQ:
@@ -170,13 +205,13 @@ static void handle_service_requests(void)
                 int err = secure_nvm_write(mode, page, data, usk);
 
                 if (!err) {
-                    seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_WRITE_RESP);
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_SYS_CTL_SNVM_WRITE_RESP);
+
                 }
                 else {
                     ZF_LOGI("sNVM write service to page %d failed: %d",page, err);
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_SYS_CTL_SNVM_READ_REQ:
@@ -198,14 +233,13 @@ static void handle_service_requests(void)
                 int err = secure_nvm_read(page,usk, admin ,data, length);
                 adminw = (void *)admin;
                 if (!err) {
-                    seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_READ_RESP);
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_SYS_CTL_SNVM_READ_RESP);
                     ZF_LOGI("Admin was 0x%x", *adminw);
                 }
                 else {
                     ZF_LOGI("sNVM Read  service from page %d failed: %d",page, err);
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_SYS_CTL_DEVICEID_REQ:
@@ -214,15 +248,13 @@ static void handle_service_requests(void)
                 memset(app_shared_memory, 0, MSS_SYS_SERIAL_NUMBER_RESP_LEN);
 
                 int err = get_serial_number(app_shared_memory);
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                 if (!err) {
-                    seL4_SetMR(0, IPC_CMD_SYS_CTL_DEVICEID_RESP);
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_SYS_CTL_DEVICEID_RESP);
                 }
                 else {
                     ZF_LOGI("device id service failed");
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_SYS_CTL_PUF_REQ:
@@ -239,15 +271,13 @@ static void handle_service_requests(void)
 
                 int err = puf_emulation_service(challenge, opcode, response);
 
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                 if (!err) {
-                    seL4_SetMR(0, IPC_CMD_SYS_CTL_PUF_RESP);
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_SYS_CTL_PUF_RESP);
                 }
                 else {
                     ZF_LOGI("puf service failed");
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_SYS_CTL_SIGN_REQ:
@@ -264,20 +294,22 @@ static void handle_service_requests(void)
 
                 int err = digital_signature_service(hash, format, response);
 
-                msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
                 if (!err) {
-                    seL4_SetMR(0, IPC_CMD_SYS_CTL_SIGN_RESP);
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_SYS_CTL_SIGN_RESP);
                 }
                 else {
                     ZF_LOGI("puf service failed");
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_KEY_CREATE_REQ:
             {
                 ZF_LOGI("Key blob generation request");
+
+                struct ipc_msg_key_create_resp *sel4_resp =
+                    (struct ipc_msg_key_create_resp *)sel4_ipc_reply.buf;
+
                 struct ree_tee_key_info *keyinfo_ptr =
                     (struct ree_tee_key_info*)app_shared_memory;
 
@@ -291,26 +323,31 @@ static void handle_service_requests(void)
                 int err = generate_key_pair(keyinfo_ptr, key_blob, max_key_blob_size);
 
                 if (!err) {
-                    msg_info = seL4_MessageInfo_new(0, 0, 0, 2);
-                    seL4_SetMR(0, IPC_CMD_KEY_CREATE_RESP);
-                    seL4_SetMR(1, key_blob_off);
+                    sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_key_create_resp);
+
+                    sel4_resp->cmd_id = IPC_CMD_KEY_CREATE_RESP;
+                    sel4_resp->keyblob_offset = key_blob_off;
                 }
                 else {
                     ZF_LOGI("Key create failed %d ", err);
-                    msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             case IPC_CMD_KEY_PUBEXT_REQ:
             {
                 ZF_LOGI("Public key extraction request");
 
+                struct ipc_msg_pubkey_export_req *sel4_req =
+                    (struct ipc_msg_pubkey_export_req *)sel4_ipc_recv.buf;
+
+                struct ipc_msg_pubkey_export_resp *sel4_resp =
+                    (struct ipc_msg_pubkey_export_resp *)sel4_ipc_reply.buf;
+
                 uint8_t *key_data_ptr = (uint8_t *)app_shared_memory;
-                uint32_t key_data_length = (uint32_t)seL4_GetMR(1);
-                uint8_t *guid_ptr = (uint8_t *)(app_shared_memory + seL4_GetMR(2));
-                uint32_t client_id = (uint32_t)seL4_GetMR(3);
+                uint32_t key_data_length = sel4_req->key_blob_size;
+                uint8_t *guid_ptr = (uint8_t *)(app_shared_memory + sel4_req->guid_offset);
+                uint32_t client_id = sel4_req->client_id;
 
                 struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info *)((uint8_t*)key_data_ptr + key_data_length);
                 uintptr_t keyinfo_off = (uintptr_t)keyinfo_ptr - (uintptr_t)app_shared_memory;
@@ -324,25 +361,31 @@ static void handle_service_requests(void)
                 int err = extract_public_key(key_data_ptr, key_data_length, guid_ptr, client_id, keyinfo_ptr, pubkey_ptr, max_size);
 
                 if (!err) {
-                    msg_info = seL4_MessageInfo_new(0, 0, 0, 3);
-                    seL4_SetMR(0, IPC_CMD_KEY_PUBEXT_RESP);
-                    seL4_SetMR(1, (seL4_Word)keyinfo_off);
-                    seL4_SetMR(2, (seL4_Word)pubkey_off);
+                    sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_pubkey_export_resp);
+
+                    sel4_resp->cmd_id = IPC_CMD_KEY_PUBEXT_RESP;
+                    sel4_resp->key_info_offset = keyinfo_off;
+                    sel4_resp->pubkey_offset = pubkey_off;
                 }
                 else {
                     ZF_LOGI("Key extraction failed %d ", err);
-                    msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
-                    seL4_SetMR(0, IPC_CMD_SYS_FAIL);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
-                seL4_Reply(msg_info);
             }
             break;
             default:
-                ZF_LOGI("Unsupported message %lu", msg_data);
-                seL4_SetMR(0, 0);
-                seL4_Reply(msg_info);
+                ZF_LOGI("Unsupported message 0x%lx", sel4_ipc_recv.buf[0]);
+                SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_UNKNOWN);
                 break;
         }
+
+        msg_info = seL4_MessageInfo_new(0, 0, 0, sel4_ipc_reply.len);
+
+        for (uint32_t i = 0; i < sel4_ipc_reply.len; i++) {
+            seL4_SetMR(i, sel4_ipc_reply.buf[i]);
+        }
+
+        seL4_Reply(msg_info);
     }
 }
 

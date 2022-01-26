@@ -39,6 +39,8 @@ enum ipc_cmd {
     IPC_CMD_KEY_PUBEXT_RESP,
 
     IPC_CMD_SYS_FAIL = 0x8FFF,
+    IPC_CMD_UNKNOWN,
+    IPC_CMD_EMPTY,
 };
 
 struct ipc_msg_req {
@@ -75,6 +77,24 @@ struct ipc_msg_cys_ctl_addr {
 struct ipc_msg_app_ep {
     seL4_Word cmd_id;
     seL4_Word app_ep;
+};
+
+struct ipc_msg_key_create_resp {
+    seL4_Word cmd_id;
+    seL4_Word keyblob_offset;
+};
+
+struct ipc_msg_pubkey_export_req {
+    seL4_Word cmd_id;
+    seL4_Word key_blob_size;
+    seL4_Word guid_offset;
+    seL4_Word client_id;
+};
+
+struct ipc_msg_pubkey_export_resp {
+    seL4_Word cmd_id;
+    seL4_Word key_info_offset;
+    seL4_Word pubkey_offset;
 };
 
 #define SINGLE_WORD_MSG         1

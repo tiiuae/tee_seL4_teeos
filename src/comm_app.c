@@ -84,12 +84,6 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_EXT_PUBKEY_REQ, (uintptr_t)ree_tee_ext_pubkey_req},
 };
 
-struct sel4_ipc_ctx {
-    seL4_MessageInfo_t msg_info;
-    seL4_Word msg_len;
-    seL4_Word msg_data;
-};
-
 static int setup_comm_ch(void)
 {
     int error = -1;
@@ -222,7 +216,8 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
     int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_rng_cmd);
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_SYS_CTL_RNG_REQ;
+    seL4_Word sel4_resp = 0;
 
     struct ree_tee_rng_cmd *ipc = (struct ree_tee_rng_cmd *)app_shared_memory;
     struct ree_tee_rng_cmd *resp = NULL;
@@ -242,24 +237,16 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
 
     /*call to sys app*/
     ZF_LOGI("Send msg to sys app...");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-    seL4_SetMR(0, IPC_CMD_SYS_CTL_RNG_REQ);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_SYS_CTL_RNG_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app responce received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len == 0) {
-        err = -EIO;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_SYS_CTL_RNG_RESP) {
-        err = -EFAULT;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
@@ -295,7 +282,8 @@ static int ree_tee_snvm_read_req(struct ree_tee_hdr *ree_msg,
     int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_snvm_cmd);
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_SYS_CTL_SNVM_READ_REQ;
+    seL4_Word sel4_resp = 0;
 
     struct ree_tee_snvm_cmd *req = (struct ree_tee_snvm_cmd *)ree_msg;
     struct ree_tee_snvm_cmd *ipc = (struct ree_tee_snvm_cmd *)app_shared_memory;
@@ -322,26 +310,16 @@ static int ree_tee_snvm_read_req(struct ree_tee_hdr *ree_msg,
 
     /* copy  message to shared buffer */
     memcpy(ipc, req, cmd_len);
-    /* req point to shared memory */
-    ZF_LOGI("Send msg to sys app...");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-    seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_READ_REQ);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_SYS_CTL_SNVM_READ_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app responce received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len == 0) {
-        err = -EIO;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_SYS_CTL_SNVM_READ_RESP) {
-        err = -EFAULT;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
@@ -380,7 +358,8 @@ static int ree_tee_snvm_write_req(struct ree_tee_hdr *ree_msg,
     int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_snvm_cmd);
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_SYS_CTL_SNVM_WRITE_REQ;
+    seL4_Word sel4_resp = 0;
 
     struct ree_tee_snvm_cmd *req = (struct ree_tee_snvm_cmd *)ree_msg;
     struct ree_tee_snvm_cmd *ipc = (struct ree_tee_snvm_cmd *)app_shared_memory;
@@ -409,24 +388,16 @@ static int ree_tee_snvm_write_req(struct ree_tee_hdr *ree_msg,
     memcpy(ipc, req, cmd_len);
     /* Send msg to sys app */
     ZF_LOGI("Send msg to sys app...");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-    seL4_SetMR(0, IPC_CMD_SYS_CTL_SNVM_WRITE_REQ);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_SYS_CTL_SNVM_WRITE_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app responce received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len == 0) {
-        err = -EIO;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_SYS_CTL_SNVM_READ_RESP) {
-        err = -EFAULT;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
@@ -460,7 +431,8 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
     int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_deviceid_cmd);
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_SYS_CTL_DEVICEID_REQ;
+    seL4_Word sel4_resp = 0;
 
     struct ree_tee_deviceid_cmd *ipc = (struct ree_tee_deviceid_cmd *)app_shared_memory;
     struct ree_tee_deviceid_cmd *resp = NULL;
@@ -480,24 +452,16 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
 
     /*call to sys app*/
     ZF_LOGI("Send msg to sys app...");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-    seL4_SetMR(0, IPC_CMD_SYS_CTL_DEVICEID_REQ);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_SYS_CTL_DEVICEID_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app responce received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len == 0) {
-        err = -EIO;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_SYS_CTL_DEVICEID_RESP) {
-        err = -EFAULT;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
@@ -533,7 +497,8 @@ static int ree_tee_puf_req(struct ree_tee_hdr *ree_msg,
     int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_puf_cmd);
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_SYS_CTL_PUF_REQ;
+    seL4_Word sel4_resp = 0;
 
     struct ree_tee_puf_cmd *req = (struct ree_tee_puf_cmd *)ree_msg;
     struct ree_tee_puf_cmd *ipc = (struct ree_tee_puf_cmd *)app_shared_memory;
@@ -562,24 +527,16 @@ static int ree_tee_puf_req(struct ree_tee_hdr *ree_msg,
     memcpy(ipc, req, cmd_len);
 
     ZF_LOGI("Send msg to sys app...");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-    seL4_SetMR(0, IPC_CMD_SYS_CTL_PUF_REQ);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_SYS_CTL_PUF_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
 
-     ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app response received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len == 0) {
-        err = -EIO;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_SYS_CTL_PUF_RESP) {
-        err = -EFAULT;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
@@ -615,7 +572,8 @@ static int ree_tee_nvm_param_req(struct ree_tee_hdr *ree_msg,
     int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_nvm_param_cmd);
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_SYS_CTL_NVM_PARAM_REQ;
+    seL4_Word sel4_resp = 0;
 
     struct ree_tee_nvm_param_cmd *ipc = (struct ree_tee_nvm_param_cmd *)app_shared_memory;
     struct ree_tee_nvm_param_cmd *resp = NULL;
@@ -640,24 +598,16 @@ static int ree_tee_nvm_param_req(struct ree_tee_hdr *ree_msg,
     resp = (struct ree_tee_nvm_param_cmd *)*reply_msg;
 
     ZF_LOGI("Send msg to sys app...");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
 
-    seL4_SetMR(0, IPC_CMD_SYS_CTL_NVM_PARAM_RESP);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_SYS_CTL_NVM_PARAM_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app response received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len == 0) {
-        err = -EIO;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_SYS_CTL_NVM_PARAM_RESP) {
-        err = -EFAULT;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
@@ -693,7 +643,8 @@ static int ree_tee_sign_req(struct ree_tee_hdr *ree_msg,
     int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_sign_cmd);
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_SYS_CTL_SIGN_REQ;
+    seL4_Word sel4_resp = 0;
 
     struct ree_tee_sign_cmd *req = (struct ree_tee_sign_cmd *)ree_msg;
     struct ree_tee_sign_cmd *ipc = (struct ree_tee_sign_cmd *)app_shared_memory;
@@ -722,24 +673,16 @@ static int ree_tee_sign_req(struct ree_tee_hdr *ree_msg,
     memcpy(ipc, req, cmd_len);
 
     ZF_LOGI("Send msg to sys app...");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
 
-    seL4_SetMR(0, IPC_CMD_SYS_CTL_SIGN_REQ);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_SYS_CTL_SIGN_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app response received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len == 0) {
-        err = -EIO;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_SYS_CTL_SIGN_RESP) {
-        err = -EFAULT;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
@@ -775,7 +718,8 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
     uint32_t reply_len = 0;
     int msg_err = TEE_NOK;
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    seL4_Word sel4_req = IPC_CMD_KEY_CREATE_REQ;
+    struct ipc_msg_key_create_resp sel4_resp = { 0 };
 
     /* REE messages */
     struct ree_tee_key_req_cmd *req = (struct ree_tee_key_req_cmd *)ree_msg;
@@ -799,29 +743,20 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
     /* copy data to ipc shared memory before seL4_Call*/
     THREAD_MEMORY_RELEASE();
 
-    /* use key service to generate keys*/
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
-    seL4_SetMR(0, IPC_CMD_KEY_CREATE_REQ);
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_KEY_CREATE_RESP,
+                       IPC_CMD_WORDS(sel4_resp),
+                       (seL4_Word *)&sel4_resp);
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
-
-    ZF_LOGI("Sys app response received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len != 2) {
-        err = -EIO;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
-    ipc_ctx.msg_data = seL4_GetMR(0);
-
-    if (ipc_ctx.msg_data != IPC_CMD_KEY_CREATE_RESP) {
-        err = -EFAULT;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    keyblob = (struct ree_tee_key_data_storage *)(app_shared_memory + seL4_GetMR(1));
+    keyblob = (struct ree_tee_key_data_storage *)(app_shared_memory + sel4_resp.keyblob_offset);
 
     /* Allocate memory for resp msg */
     reply_len = sizeof(struct ree_tee_key_resp_cmd)
@@ -871,7 +806,8 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     uint32_t reply_len = 0;
     int msg_err = TEE_NOK;
 
-    struct sel4_ipc_ctx ipc_ctx = { 0 };
+    struct ipc_msg_pubkey_export_req sel4_req = { 0 };
+    struct ipc_msg_pubkey_export_resp sel4_resp = { 0 };
 
     /* REE messages */
     struct ree_tee_pub_key_req_cmd *cmd =
@@ -906,32 +842,27 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     THREAD_MEMORY_RELEASE();
 
     ZF_LOGI("Extract Public key..");
-    ipc_ctx.msg_info = seL4_MessageInfo_new(0, 0, 0, 4);
 
-    seL4_SetMR(0, IPC_CMD_KEY_PUBEXT_REQ);
-    seL4_SetMR(1, key_blob_size);
-    seL4_SetMR(2, guid_off);
-    seL4_SetMR(3, cmd->client_id);
+    sel4_req.cmd_id = IPC_CMD_KEY_PUBEXT_REQ;
+    sel4_req.key_blob_size = key_blob_size;
+    sel4_req.guid_offset = guid_off;
+    sel4_req.client_id = cmd->client_id;
 
-    ipc_ctx.msg_info = seL4_Call(ipc_app_ep1, ipc_ctx.msg_info);
+    err = ipc_msg_call(ipc_app_ep1,
+                       IPC_CMD_WORDS(sel4_req),
+                       (seL4_Word *)&sel4_req,
+                       IPC_CMD_KEY_PUBEXT_RESP,
+                       IPC_CMD_WORDS(sel4_resp),
+                       (seL4_Word *)&sel4_resp);
 
-    ZF_LOGI("Sys app response received...");
-    ipc_ctx.msg_len = seL4_MessageInfo_get_length(ipc_ctx.msg_info);
-    if (ipc_ctx.msg_len != 3) {
-        err = -EIO;
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
-    ipc_ctx.msg_data = seL4_GetMR(0);
-    if (ipc_ctx.msg_data != IPC_CMD_KEY_PUBEXT_RESP) {
-        err = -EFAULT;
-        msg_err = TEE_IPC_CMD_ERR;
-        goto err_out;
-    }
-
-    key_info_ptr = (struct ree_tee_key_info *)(app_shared_memory + seL4_GetMR(1));
-    pubkey_ptr = (uint8_t *)(app_shared_memory + seL4_GetMR(2));
+    key_info_ptr = (struct ree_tee_key_info *)(app_shared_memory + sel4_resp.key_info_offset);
+    pubkey_ptr = (uint8_t *)(app_shared_memory + sel4_resp.pubkey_offset);
 
     /* Allocate memory for resp msg */
     reply_len = sizeof(struct ree_tee_pub_key_resp_cmd)
