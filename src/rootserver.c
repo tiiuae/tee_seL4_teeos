@@ -746,6 +746,8 @@ int main(void)
 
     simple_print(&ctx->simple);
 
+    ZF_LOGI("build date: %s - %s", __DATE__, __TIME__);
+
     /* Create endpoints for app <-> rootserver and app <-> app IPC */
     err = create_eps(ctx);
     if (err) {
