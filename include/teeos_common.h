@@ -6,6 +6,7 @@
 #pragma once
 
 #include <sel4/types.h>
+#include <errno.h>
 
 #define IPC_CMD_WORDS(x) (sizeof(x)/sizeof(seL4_Word))
 
@@ -78,32 +79,39 @@ struct ipc_msg_app_ep {
 
 #define SINGLE_WORD_MSG         1
 
-static inline int ipc_msg_call(seL4_Word cmd,
-                               seL4_CPtr ep,
+static inline int ipc_msg_call(seL4_CPtr ep,
+                               const uint32_t send_words,
+                               seL4_Word *send_buf,
+                               const seL4_Word resp_cmd,
                                const uint32_t resp_words,
                                seL4_Word *resp_buf)
 {
-    /* IPC request*/
-    struct ipc_msg_req ipc_req = {
-        .cmd_id = cmd,
-    };
-
     seL4_MessageInfo_t msg_info = { 0 };
     seL4_Word msg_len = 0;
 
-    msg_info = seL4_MessageInfo_new(0, 0, 0, SINGLE_WORD_MSG);
+    if (!send_buf || !resp_buf) {
+        return -EINVAL;
+    }
 
-    seL4_SetMR(0, ipc_req.cmd_id);
+    msg_info = seL4_MessageInfo_new(0, 0, 0, send_words);
+
+    for (uint32_t i = 0; i < send_words; i++) {
+        seL4_SetMR(i, send_buf[i]);
+    }
 
     msg_info = seL4_Call(ep, msg_info);
 
     msg_len = seL4_MessageInfo_get_length(msg_info);
     if (msg_len != resp_words) {
-        return -EINVAL;
+        return -EIO;
     }
 
     for (uint32_t i = 0; i < resp_words; i++) {
         resp_buf[i] = seL4_GetMR(i);
+    }
+
+    if (resp_buf[0] != resp_cmd) {
+        return -EFAULT;
     }
 
     return 0;

@@ -94,26 +94,22 @@ static int setup_comm_ch(void)
 {
     int error = -1;
 
+    seL4_Word ipc_req = IPC_CMD_CH_ADDR_REQ;
     /* IPC response */
     struct ipc_msg_ch_addr ipc_resp = { 0 };
-    const uint32_t RESP_WORDS = IPC_CMD_WORDS(ipc_resp);
-    seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
 
     ZF_LOGI("seL4_Call: IPC_CMD_CH_ADDR_REQ");
 
-    error = ipc_msg_call(IPC_CMD_CH_ADDR_REQ,
-                         ipc_root_ep,
-                         RESP_WORDS,
-                         msg_data);
+    error = ipc_msg_call(ipc_root_ep,
+                         SINGLE_WORD_MSG,
+                         &ipc_req,
+                         IPC_CMD_CH_ADDR_RESP,
+                         IPC_CMD_WORDS(ipc_resp),
+                         (seL4_Word *)&ipc_resp);
 
     if (error) {
         ZF_LOGF("error ipc_msg_call: %d", error);
         return error;
-    }
-
-    if (ipc_resp.cmd_id != IPC_CMD_CH_ADDR_RESP) {
-        ZF_LOGF("ipc cmd_id: 0x%lx", ipc_resp.cmd_id);
-        return -EPERM;
     }
 
     app_shared_memory = (void *)ipc_resp.shared_memory;
@@ -126,25 +122,22 @@ static int setup_ihc_buf(struct sel4_rpmsg_config *rpmsg_conf)
 {
     int error = -1;
 
+    seL4_Word ipc_req = IPC_CMD_RPMSG_CONF_REQ;
     /* IPC response */
     struct ipc_msg_ihc_buf ipc_resp = { 0 };
-    const uint32_t RESP_WORDS = IPC_CMD_WORDS(ipc_resp);
-    seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
 
     ZF_LOGI("seL4_Call: IPC_CMD_RPMSG_CONF_REQ");
 
-    error = ipc_msg_call(IPC_CMD_RPMSG_CONF_REQ,
-                         ipc_root_ep,
-                         RESP_WORDS,
-                         msg_data);
+    error = ipc_msg_call(ipc_root_ep,
+                         SINGLE_WORD_MSG,
+                         &ipc_req,
+                         IPC_CMD_RPMSG_CONF_RESP,
+                         IPC_CMD_WORDS(ipc_resp),
+                         (seL4_Word *)&ipc_resp);
 
     if (error) {
+        ZF_LOGF("ERROR ipc_msg_call: %d", error);
         return error;
-    }
-
-    if (ipc_resp.cmd_id != IPC_CMD_RPMSG_CONF_RESP) {
-        ZF_LOGF("ipc cmd_id: 0x%lx", ipc_resp.cmd_id);
-        return -EPERM;
     }
 
     rpmsg_conf->ihc_buf_pa = ipc_resp.ihc_buf_pa;
@@ -168,25 +161,22 @@ static int setup_app_ep(void)
 {
     int error = -1;
 
+    seL4_Word ipc_req = IPC_CMD_APP_EP_REQ;
     /* IPC response */
     struct ipc_msg_app_ep ipc_resp = { 0 };
-    seL4_Word *msg_data = (seL4_Word *)&ipc_resp;
 
     ZF_LOGI("seL4_Call: IPC_CMD_APP_EP_REQ");
 
-    error = ipc_msg_call(IPC_CMD_APP_EP_REQ,
-                         ipc_root_ep,
+    error = ipc_msg_call(ipc_root_ep,
+                         SINGLE_WORD_MSG,
+                         &ipc_req,
+                         IPC_CMD_APP_EP_RESP,
                          IPC_CMD_WORDS(ipc_resp),
-                         msg_data);
+                         (seL4_Word *)&ipc_resp);
 
     if (error) {
         ZF_LOGF("error ipc_msg_call: %d", error);
         return error;
-    }
-
-    if (ipc_resp.cmd_id != IPC_CMD_APP_EP_RESP) {
-        ZF_LOGF("ipc cmd_id: 0x%lx", ipc_resp.cmd_id);
-        return -EPERM;
     }
 
     ipc_app_ep1 = ipc_resp.app_ep;
