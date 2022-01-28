@@ -44,7 +44,7 @@ set(UseRiscVOpenSBI OFF CACHE BOOL "")
 set(IMAGE_START_ADDR "0x80200000" CACHE STRING "")
 set(RISCV64 ON CACHE BOOL "")
 set(PolarfireAmp ON CACHE BOOL "")
-add_compile_definitions(KERNEL_ELF_PADDR_BASE_START=0x400000)
+add_compile_definitions(KERNEL_ELF_PADDR_BASE_START=0x200000)
 
 correct_platform_strings()
 
@@ -64,3 +64,7 @@ set(KernelNumDomains 1 CACHE STRING "" FORCE)
 set(KernelMaxNumNodes 1 CACHE STRING "" FORCE)
 
 set(KernelHssIhcSyscall ON CACHE BOOL "")
+
+# Offset added to efloader binary load address. This will place elfloader binary
+# at the and of seL4 reserved RAM area.
+set(ElfloaderLoadOffset 0x7E00000)
