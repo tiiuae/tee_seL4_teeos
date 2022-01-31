@@ -17,8 +17,18 @@
 #include <sel4runtime.h>
 #include <util.h>
 #include <sys_ctl_service.h>
-
+#include <teeos/gen_config.h>
+#include <tommath.h>
 #include "sys_sel4.h"
+
+
+struct bignum  {
+   int used;
+   int alloc;
+   mp_sign sign;
+   mp_digit *dp;
+};
+
 
 int trace_level = TRACE_LEVEL;
 const char trace_ext_prefix[]  = "SEL4";
@@ -116,109 +126,112 @@ void trace_ext_puts(const char *str)
 
 void sys_return_cleanup(void)
 {
-	// _ldelf_return(0);
-	/*NOTREACHED*/
+
 	while (true)
 		;
 }
 
-void crypto_bignum_free(struct bignum *s)
-{
-	free(s);
-}
 struct bignum *crypto_bignum_allocate(size_t size_bits)
 {
-	//FIXME real size calculation
-	struct bignum *bn = malloc(size_bits/8);
-
-	if (!bn)
+	int err;
+	struct bignum *A;
+	A = malloc(sizeof(struct bignum));
+	if (!A)
 		return NULL;
 
-	return bn;
-}
+	err = mp_init((void*)A);
+	if (err)
+	{
+		printf("mp_init failed %d\n", err);
+		free(A);
+		return NULL;
+	}
+	err = mp_init_size((void*)A, size_bits/sizeof(uint64_t));
+	if (err)
+	{
+		printf("mp_init_size failed %d\n", err);
+		free(A);
+		return NULL;
+	}
+	return A;
 
-void crypto_bignum_clear(struct bignum *s)
+}
+TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
+				struct bignum *to)
 {
-	//FIXME
-	s = s;
+	int err;
+	if (to == NULL)
+	{
+		err = mp_init((void*)to);
+		if (err)
+		{
+			printf("mp_init failed %d\n", err);
+			return err;
+		}
+	}
+	err = mp_from_ubin((void*)to, from, fromsize);
+
+	return err;
+}
+void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
+{
+	int err;
+
+	size_t written;
+	err = mp_to_ubin((const void*)from, to, sizeof(uint64_t), &written);
+	if (err)
+		printf("%s failed : %d written = %lu\n",__func__, err,  written);
 }
 
+size_t crypto_bignum_num_bytes(struct bignum *a)
+{
+	return mp_ubin_size((void*)a);
+}
+size_t crypto_bignum_num_bits(struct bignum *a)
+{
+	 return (8 * mp_ubin_size((void*)a));
+}
+
+void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
+{
+	int err;
+	if (to == NULL)
+	{
+		err = mp_init_copy((void*)from, (void*)to);
+	}
+	else
+	{
+		err = mp_copy((void*)from, (void*)to);
+	}
+	if (err)
+		printf("bignum copy failed %d\n", err);
+}
+void crypto_bignum_free(struct bignum *a)
+{
+	mp_clear((void*)a);
+	free(a);
+}
+void crypto_bignum_clear(struct bignum *a)
+{
+	mp_zero((void*)a);
+}
 
 TEE_Result tee_time_get_sys_time(TEE_Time *time)
 {
-	// FIXME
-	time->millis = 100;
-	time->seconds = 200;
+
+	uint64_t n;
+	printf("%s %d\n", __func__, __LINE__);
+
+    asm volatile(
+        "rdtime %0"
+        : "=r"(n));
+
+	/*uint64_t timeinms = (CONFIG_HW_TIMER_FREQ / 1000UL) * n;
+	uint32_t seconds = (uint32_t)(timeinms/1000);*/
+
+	uint64_t timeinms = n/(CONFIG_HW_TIMER_FREQ / 1000UL);
+	uint32_t seconds = (uint32_t)(n/CONFIG_HW_TIMER_FREQ);
+	time->millis = timeinms % 1000;
+	time->seconds = seconds;
 	return 0;
-}
-
-
-TEE_Result sys_map_zi(size_t num_bytes, uint32_t flags, vaddr_t *va,
-		      size_t pad_begin, size_t pad_end)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_map_zi(va, num_bytes, pad_begin, pad_end, flags);
-}
-
-TEE_Result sys_unmap(vaddr_t va, size_t num_bytes)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_unmap(va, num_bytes);
-}
-
-TEE_Result sys_open_ta_bin(const TEE_UUID *uuid, uint32_t *handle)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_open_bin(uuid, sizeof(TEE_UUID), handle);
-}
-
-TEE_Result sys_close_ta_bin(uint32_t handle)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_close_bin(handle);
-}
-
-TEE_Result sys_map_ta_bin(vaddr_t *va, size_t num_bytes, uint32_t flags,
-			  uint32_t handle, size_t offs, size_t pad_begin,
-			  size_t pad_end)
-{
-	printf("%s\n", __func__);
-	return 0;
-	/*return _ldelf_map_bin(va, num_bytes, handle, offs,
-			     pad_begin, pad_end, flags);*/
-}
-
-
-TEE_Result sys_copy_from_ta_bin(void *dst, size_t num_bytes, uint32_t handle,
-				size_t offs)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_cp_from_bin(dst, offs, num_bytes, handle);
-}
-
-TEE_Result sys_set_prot(vaddr_t va, size_t num_bytes, uint32_t flags)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_set_prot(va, num_bytes, flags);
-}
-
-TEE_Result sys_remap(vaddr_t old_va, vaddr_t *new_va, size_t num_bytes,
-		     size_t pad_begin, size_t pad_end)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_remap(old_va, new_va, num_bytes, pad_begin, pad_end);
-}
-
-TEE_Result sys_gen_random_num(void *buf, size_t blen)
-{
-	printf("%s\n", __func__);
-	return 0;
-	//return _ldelf_gen_rnd_num(buf, blen);
 }
