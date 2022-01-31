@@ -178,7 +178,7 @@ void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
 	int err;
 
 	size_t written;
-	err = mp_to_ubin((const void*)from, to, sizeof(uint64_t), &written);
+	err = mp_to_ubin((const void*)from, to, SIZE_MAX, &written);
 	if (err)
 		printf("%s failed : %d written = %lu\n",__func__, err,  written);
 }
