@@ -28,18 +28,107 @@
 #include <key_service.h>
 #include <public_key.pem.h>
 
+#include <crypto/crypto.h>
 
 extern seL4_CPtr ipc_root_ep;
 extern seL4_CPtr ipc_app_ep1;
 extern void *app_shared_memory;
 
+#define RSA_GUID_INDEX  0
+#define KEY_BUF_SIZE    2048
 
+#define  PK_PUBLIC      0x0000
+   /* Refers to the private key */
+#define PK_PRIVATE      0x0001
+
+static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uint32_t *pubkey_l, uint32_t *privkey_l)
+{
+    static struct rsa_keypair key = {0};
+
+    int r;
+    uint32_t e;
+    size_t length;
+
+    uint8_t *tmp_pub;
+    uint8_t *tmp_prv;
+
+    tmp_pub = malloc(KEY_BUF_SIZE);
+    if(!tmp_pub)
+    {
+        r = -ENOMEM;
+        goto exit;
+    }
+    tmp_prv = malloc(KEY_BUF_SIZE);
+    if(!tmp_prv)
+    {
+        r = -ENOMEM;
+        goto exit;
+    }
+    ZF_LOGI("allocate keys, key size = %d bits", size);
+    r = crypto_acipher_alloc_rsa_keypair(&key, size);
+
+    if (r)
+    {
+        ZF_LOGI("Key allocation failed %d\n", r);
+        goto exit;
+    }
+
+    e = htobe32(65537);
+    crypto_bignum_bin2bn((const uint8_t *)&e, sizeof(e), key.e);
+    ZF_LOGI("generate keys");
+
+    r = crypto_acipher_gen_rsa_key(&key, size);
+    if (r != TEE_SUCCESS) {
+        ZF_LOGI("rsa creation failed %d\n", r);
+    }
+
+    length = KEY_BUF_SIZE;
+
+
+    ZF_LOGI("Extract keys");
+    r = crypto_acipher_extract_key(&key, tmp_prv, &length, PK_PRIVATE );
+    if (r != TEE_SUCCESS) {
+        ZF_LOGI("rsa private key extract failed %d\n", r);
+    }
+    *privkey_l = length;
+    length = KEY_BUF_SIZE;
+    r = crypto_acipher_extract_key(&key, tmp_pub , &length, PK_PUBLIC );
+    if (r != TEE_SUCCESS) {
+        ZF_LOGI("rsa public key extract failed %d\n", r);
+    }
+    *pubkey_l = length;
+
+    ZF_LOGI("public key = %u private key %u bytes, copy public key to byte array..", *pubkey_l , *privkey_l );
+    memcpy(pubkey, &tmp_pub[0], *pubkey_l );
+    privkey=&pubkey[*pubkey_l];
+    memcpy(privkey, &tmp_prv[0], *privkey_l);
+
+    ZF_LOGI("free keys");
+    crypto_acipher_free_rsa_keypair(&key);
+
+exit:
+    free(tmp_pub);
+    free(tmp_prv);
+
+    return r;
+}
 
 static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint32_t length, uint8_t *guid )
 {
     guid = guid;
     length = length;
     return (struct ree_tee_key_data_storage *)key_data;
+}
+
+static int generate_guid(int index, uint8_t *guid)
+{
+    /* Use fixed challenge */
+    uint8_t challenge[] = {0x49, 0x59, 0x48, 0x48, 0x50, 0x54, 0x42, 0x36, 0x6a, 0x61, 0x58, 0x71,
+    0x52, 0x33, 0x57, 0x5a};
+
+    int err = puf_emulation_service(challenge, index, guid);
+
+    return err;
 }
 
 
@@ -52,15 +141,17 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
     {
         case KEY_RSA:
         {
-            /* generate Guid from system controller*/
-            nonce_service(key_req->guid);
+           /* generate Guid from system controller*/
+            err = generate_guid(RSA_GUID_INDEX, key_req->guid);
+            if (err)
+                return err;
 
             /* Copy keyinfo fields from req */
             memcpy(&payload->key_info, key_req, sizeof(struct ree_tee_key_info));
 
-            /* Use hard coded key for now */
-            payload->key_info.pubkey_length = sizeof(public_key_pem);
-            payload->key_info.privkey_length = sizeof(cert_pem);
+            err = generate_rsa_keypair(payload->key_info.key_nbits, &payload->keys[0], NULL, &payload->key_info.pubkey_length, &payload->key_info.privkey_length);
+            if (err)
+                return err;
 
             payload->storage_size = sizeof(struct ree_tee_key_data_storage)
             + payload->key_info.privkey_length
@@ -71,11 +162,9 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             }
 
             ZF_LOGI("pub key Length = %u...key pair name %s", payload->key_info.pubkey_length, key_req->name);
-            memcpy(&payload->keys[0], public_key_pem, sizeof(public_key_pem));
             strcpy(payload->key_info.name, key_req->name);
 
             ZF_LOGI("Private key Length = %u...", payload->key_info.privkey_length);
-            memcpy(&payload->keys[payload->key_info.pubkey_length], cert_pem, payload->key_info.privkey_length);
             payload->key_info.key_nbits = key_req->key_nbits;
 
             /*Update length to request struct*/
