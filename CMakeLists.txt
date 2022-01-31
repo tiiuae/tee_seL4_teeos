@@ -166,6 +166,7 @@ target_link_libraries(sys_ctl_app
         sysctllib
         tomcrypt
         opteecrypt
+        tommath
 )
 
 # CPIO

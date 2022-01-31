@@ -90,7 +90,7 @@ ${TOMMATH_SRC_FOLDER}/mp_prime_rand.c
 ${TOMMATH_SRC_FOLDER}/mp_prime_strong_lucas_selfridge.c
 ${TOMMATH_SRC_FOLDER}/mp_radix_size.c
 ${TOMMATH_SRC_FOLDER}/mp_radix_size_overestimate.c
-${TOMMATH_SRC_FOLDER}/mp_rand.c
+mp_rand.c
 ${TOMMATH_SRC_FOLDER}/mp_read_radix.c
 ${TOMMATH_SRC_FOLDER}/mp_reduce.c
 ${TOMMATH_SRC_FOLDER}/mp_reduce_2k.c
@@ -152,7 +152,7 @@ ${TOMMATH_SRC_FOLDER}/s_mp_prime_is_divisible.c
 ${TOMMATH_SRC_FOLDER}/s_mp_prime_tab.c
 ${TOMMATH_SRC_FOLDER}/s_mp_radix_map.c
 ${TOMMATH_SRC_FOLDER}/s_mp_radix_size_overestimate.c
-${TOMMATH_SRC_FOLDER}/s_mp_rand_platform.c
+s_mp_rand_platform.c
 ${TOMMATH_SRC_FOLDER}/s_mp_sqr.c
 ${TOMMATH_SRC_FOLDER}/s_mp_sqr_comba.c
 ${TOMMATH_SRC_FOLDER}/s_mp_sqr_karatsuba.c
@@ -182,6 +182,7 @@ target_link_libraries(tommath
         sel4_autoconf
     PRIVATE
         teeos_Config
+        sysctllib
 )
 
 export(PACKAGE ${PROJECT_NAME})

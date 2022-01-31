@@ -178,6 +178,7 @@ ${TOMCRYPT_SRC_FOLDER}/src/pk/pkcs1/pkcs_1_v1_5_encode.c ${TOMCRYPT_SRC_FOLDER}/
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_export.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_exptmod.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_get_size.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import_pkcs8.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_import_x509.c  
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_make_key.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_set.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_sign_hash.c 
+${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_free.c
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_sign_saltlen_get.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_verify_hash.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_export.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_pkcs8.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_x509.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_make_key.c 
@@ -219,11 +220,11 @@ PUBLIC
 
 
 target_compile_definitions(tomcrypt PUBLIC
- #USE_LTM
- #LTM_DESC
- MP_YES=true
- MP_NO=false
- LTC_MAX_ECC=521
+MP_YES=true
+MP_NO=false
+LTC_MAX_ECC=521
+LTC_EASY
+LTC_GCM_MODE
  )
 
 target_link_libraries(tomcrypt
