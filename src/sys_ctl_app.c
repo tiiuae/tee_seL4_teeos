@@ -26,9 +26,6 @@
 #include <utils/fence.h>
 #include <utils/zf_log.h>
 
-#include <crypto/crypto.h>
-#include <tomcrypt_init.h>
-
 struct sel4_ipc_call_data {
     uint32_t len;
     seL4_Word *buf;
@@ -127,7 +124,7 @@ static void handle_service_requests(void)
         .buf = sel4_ipc_buf,
     };
 
-    struct sel4_ipc_call_data sel4_ipc_reply = { 
+    struct sel4_ipc_call_data sel4_ipc_reply = {
         .len = 0,
         .buf = sel4_ipc_buf + seL4_MsgMaxLength, /* offset of seL4_Words */
     };
@@ -464,13 +461,6 @@ void puf_demo(uint8_t opcode)
 
 }
 
-static void init_crypto()
-{
-
-    crypto_init();
-}
-
-
 int main(int argc, char **argv)
 {
     int error = -1;
@@ -483,8 +473,6 @@ int main(int argc, char **argv)
         return -EINVAL;
     }
 
-    init_crypto();
-
     ipc_root_ep = (seL4_CPtr)atol(argv[0]);
     if (ipc_root_ep == 0) {
         ZF_LOGF("Invalid root endpoint");
@@ -492,6 +480,11 @@ int main(int argc, char **argv)
     }
 
     error = setup_sys_ctl_io();
+    if (error) {
+        return error;
+    }
+
+    error = teeos_init_crypto();
     if (error) {
         return error;
     }

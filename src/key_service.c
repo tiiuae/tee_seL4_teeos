@@ -4,6 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+/* Local log level */
+#define ZF_LOG_LEVEL ZF_LOG_INFO
+#define PLAINTEXT_DATA
+
 #include <teeos/gen_config.h>
 
 #include <regex.h>
@@ -29,6 +33,7 @@
 #include <public_key.pem.h>
 
 #include <crypto/crypto.h>
+#include <tee/tee_fs_key_manager.h>
 
 extern seL4_CPtr ipc_root_ep;
 extern seL4_CPtr ipc_app_ep1;
@@ -36,10 +41,18 @@ extern void *app_shared_memory;
 
 #define RSA_GUID_INDEX  0
 #define KEY_BUF_SIZE    2048
+#define FEK_SIZE        16u
 
 #define  PK_PUBLIC      0x0000
    /* Refers to the private key */
 #define PK_PRIVATE      0x0001
+
+static const TEE_UUID uuid = {
+                    0x5f8b97df, 0x2d0d, 0x4ad2,
+                    {0x98, 0xd2, 0x74, 0xf4, 0x38, 0x27, 0x98, 0xbb},
+                };
+
+static uint8_t fek[FEK_SIZE];
 
 static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uint32_t *pubkey_l, uint32_t *privkey_l)
 {
@@ -115,9 +128,35 @@ exit:
 
 static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint32_t length, uint8_t *guid )
 {
-    guid = guid;
-    length = length;
-    return (struct ree_tee_key_data_storage *)key_data;
+    int err;
+    size_t data_length = length + (16 - length%16);
+    struct ree_tee_key_data_storage *chk = (struct ree_tee_key_data_storage*)key_data;
+
+    void *data =  malloc(data_length);
+    if (!data)
+        return NULL;
+
+    memset(data, 0, data_length);
+
+    if (memcmp(guid, &chk->key_info.guid[0], 32) == 0)
+    {
+        ZF_LOGI("Plain textdata, encryption not needed");
+        memcpy(data,key_data,length);
+    }
+    else
+    {
+        err = tee_fs_crypt_block(&uuid, data,
+                    key_data, length, 1, fek,TEE_MODE_DECRYPT);
+
+        if (err)
+        {
+            ZF_LOGI("Data decrypt failed %d", err);
+            free(data);
+            return NULL;
+
+        }
+    }
+    return (struct ree_tee_key_data_storage *)data;
 }
 
 static int generate_guid(int index, uint8_t *guid)
@@ -131,21 +170,61 @@ static int generate_guid(int index, uint8_t *guid)
     return err;
 }
 
+static int generate_fek(uint8_t *buf)
+{
+    int err;
+    err = get_serial_number(buf);
+    if (!err)
+    {
+        err = tee_fs_fek_crypt(&uuid, TEE_MODE_ENCRYPT, buf, FEK_SIZE , buf);
+    }
+    return err;
+}
+
+int teeos_init_crypto(void)
+{
+    int err;
+
+    err = crypto_init();
+    if (err)
+    {
+        ZF_LOGI("Crypto init failed");
+    }
+
+    err = tee_fs_init_key_manager();
+    if (err)
+    {
+        ZF_LOGI("tee_fs_init_key_manager failed = %d", err);
+    }
+
+    err = generate_fek(fek);
+    if (err)
+    {
+        ZF_LOGI("fek generation failed = %d", err);
+    }
+    return err;
+}
 
 int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_storage *payload, uint32_t max_size)
 {
     int err = -1;
-
     ZF_LOGI("Generate keypair file, format = %d", key_req->format);
     switch (key_req->format)
     {
-        case KEY_RSA:
+        case KEY_RSA_CIPHERED:
+        case KEY_RSA_PLAINTEXT:
         {
-           /* generate Guid from system controller*/
+
+#ifdef PLAINTEXT_DATA
+            /* Force encryption */
+            key_req->format = KEY_RSA_PLAINTEXT;
+#endif
+            /* generate Guid from system controller*/
             err = generate_guid(RSA_GUID_INDEX, key_req->guid);
             if (err)
                 return err;
 
+            memset(&payload->keys[0], 0, 4096);
             /* Copy keyinfo fields from req */
             memcpy(&payload->key_info, key_req, sizeof(struct ree_tee_key_info));
 
@@ -153,23 +232,50 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             if (err)
                 return err;
 
-            payload->storage_size = sizeof(struct ree_tee_key_data_storage)
-            + payload->key_info.privkey_length
+            uint32_t keysize = payload->key_info.privkey_length
             + payload->key_info.pubkey_length;
 
-            if (payload->storage_size > max_size) {
+            payload->key_info.storage_size = sizeof(struct ree_tee_key_data_storage)
+            + keysize;
+
+            /* Round up storage size */
+            payload->key_info.storage_size = payload->key_info.storage_size + (16 - payload->key_info.storage_size%16);
+
+            if (payload->key_info.storage_size > max_size) {
                 return -ENOMEM;
             }
 
             ZF_LOGI("pub key Length = %u...key pair name %s", payload->key_info.pubkey_length, key_req->name);
-            strcpy(payload->key_info.name, key_req->name);
-
             ZF_LOGI("Private key Length = %u...", payload->key_info.privkey_length);
-            payload->key_info.key_nbits = key_req->key_nbits;
 
             /*Update length to request struct*/
             key_req->pubkey_length = payload->key_info.pubkey_length;
             key_req->privkey_length = payload->key_info.privkey_length;
+            key_req->storage_size = payload->key_info.storage_size;
+
+            if(key_req->format == KEY_RSA_CIPHERED)
+            {
+                uint8_t *tmp;
+                tmp = malloc(4096);
+                memset(tmp, 0,4096);
+                if (!tmp)
+                {
+                    err = -ENOMEM;
+                    break;
+                }
+                ZF_LOGI("Encrypt data, size = %u", key_req->storage_size);
+
+                err = tee_fs_crypt_block(&uuid, tmp,
+                        (uint8_t*)payload, key_req->storage_size,
+                        1, fek,
+                        TEE_MODE_ENCRYPT);
+
+                ZF_LOGI("Encrypt: tee_fs_crypt_block = %d\n", err);
+
+                /* Copy encrypted data */
+                memcpy((void*)payload, tmp, key_req->storage_size);
+                free(tmp);
+            }
 
             err = 0;
             break;
@@ -179,7 +285,6 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             err = -EINVAL;
             break;
     }
-
     return err;
 }
 
@@ -198,17 +303,22 @@ int extract_public_key(uint8_t *key_data, uint32_t key_data_length, uint8_t *gui
 
     if (clientid != payload->key_info.client_id) {
         ZF_LOGE("ERROR clientid mismatch: %d (%d)", payload->key_info.client_id, clientid);
+        free(payload);
         return -ENXIO;
     }
 
     if (sizeof(struct ree_tee_key_data_storage) + payload->key_info.pubkey_length > max_size)
+    {
+        free(payload);
         return -ENOMEM;
-
+    }
     /* extract public key and key info*/
     ZF_LOGI("Public key length = %d Name %s", payload->key_info.pubkey_length, payload->key_info.name);
     memcpy(keyinfo, &payload->key_info, sizeof(struct ree_tee_key_info));
     keyinfo->privkey_length = 0;
     memcpy(&key[0], &payload->keys[0], payload->key_info.pubkey_length);
 
+    /* Free payload */
+    free(payload);
     return 0;
 }

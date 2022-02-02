@@ -54,7 +54,8 @@ enum tee_status {
 
 enum key_format {
     KEY_UNKNOWN = -10,
-    KEY_RSA = 1,
+    KEY_RSA_PLAINTEXT = 1,
+    KEY_RSA_CIPHERED = 2,
 };
 
 struct ree_tee_hdr
@@ -127,12 +128,12 @@ struct ree_tee_key_info
     uint64_t counter;
     uint32_t pubkey_length;
     uint32_t privkey_length;
+    uint32_t storage_size;
 };
 
 
 struct ree_tee_key_data_storage
 {
-    uint32_t storage_size;
     struct ree_tee_key_info key_info;
     uint8_t keys[0];
 };
@@ -146,6 +147,12 @@ struct ree_tee_key_req_cmd
 struct ree_tee_key_resp_cmd
 {
     struct ree_tee_hdr hdr;
+    struct ree_tee_key_info key_data_info;
+    struct ree_tee_key_data_storage key_data;
+};
+
+struct key_data_blob
+{
     struct ree_tee_key_info key_data_info;
     struct ree_tee_key_data_storage key_data;
 };

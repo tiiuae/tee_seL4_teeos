@@ -760,8 +760,7 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
 
     /* Allocate memory for resp msg */
     reply_len = sizeof(struct ree_tee_key_resp_cmd)
-                + keyblob->key_info.privkey_length
-                + keyblob->key_info.pubkey_length;
+                +key_info->storage_size;
 
     resp = malloc(reply_len);
     if (!resp) {
@@ -773,7 +772,7 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
 
     /* Populate response key_info from key generation data*/
     memcpy(&resp->key_data_info, key_info, sizeof(struct ree_tee_key_info));
-    memcpy(&resp->key_data, keyblob, keyblob->storage_size);
+    memcpy(&resp->key_data, keyblob, key_info->storage_size);
 
     SET_REE_HDR(&resp->hdr, reply_type, TEE_OK, reply_len);
 
