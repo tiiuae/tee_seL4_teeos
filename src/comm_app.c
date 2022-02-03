@@ -771,8 +771,8 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
     memset(resp, 0x0, reply_len);
 
     /* Populate response key_info from key generation data*/
-    memcpy(&resp->key_data_info, key_info, sizeof(struct ree_tee_key_info));
-    memcpy(&resp->key_data, keyblob, key_info->storage_size);
+    memcpy(&resp->key_blob.key_data_info, key_info, sizeof(struct ree_tee_key_info));
+    memcpy(&resp->key_blob.key_data, keyblob, key_info->storage_size);
 
     SET_REE_HDR(&resp->hdr, reply_type, TEE_OK, reply_len);
 
@@ -816,10 +816,10 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     /* Shared Memory: | Key blob | GUID | */
     uint8_t *keyblob_ptr = (uint8_t*)app_shared_memory;
     uint32_t key_blob_size = cmd->hdr.length
-                             - sizeof(struct ree_tee_pub_key_req_cmd);
+                             - sizeof(struct ree_tee_hdr);
 
-    uint8_t *guid_ptr =  (uint8_t*)(keyblob_ptr + key_blob_size);
-    uintptr_t guid_off = (uintptr_t)guid_ptr - (uintptr_t)app_shared_memory;
+
+
 
     struct ree_tee_key_info *key_info_ptr = NULL;
     uint8_t *pubkey_ptr = NULL;
@@ -834,8 +834,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     }
 
     /* Setup IPC data */
-    memcpy(keyblob_ptr, &cmd->crypted_key_data[0], key_blob_size);
-    memcpy(guid_ptr, cmd->guid, sizeof(cmd->guid));
+    memcpy(keyblob_ptr, &cmd->data_in, key_blob_size);
 
     /* copy data to ipc shared memory before seL4_Call*/
     THREAD_MEMORY_RELEASE();
@@ -844,8 +843,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
 
     sel4_req.cmd_id = IPC_CMD_KEY_PUBEXT_REQ;
     sel4_req.key_blob_size = key_blob_size;
-    sel4_req.guid_offset = guid_off;
-    sel4_req.client_id = cmd->client_id;
+
 
     err = ipc_msg_call(ipc_app_ep1,
                        IPC_CMD_WORDS(sel4_req),

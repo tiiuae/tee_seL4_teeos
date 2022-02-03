@@ -144,25 +144,21 @@ struct ree_tee_key_req_cmd
     struct ree_tee_key_info key_req_info;
 };
 
-struct ree_tee_key_resp_cmd
-{
-    struct ree_tee_hdr hdr;
-    struct ree_tee_key_info key_data_info;
-    struct ree_tee_key_data_storage key_data;
-};
-
 struct key_data_blob
 {
     struct ree_tee_key_info key_data_info;
     struct ree_tee_key_data_storage key_data;
 };
 
+struct ree_tee_key_resp_cmd
+{
+    struct ree_tee_hdr hdr;
+    struct key_data_blob key_blob;
+};
 struct ree_tee_pub_key_req_cmd
 {
     struct ree_tee_hdr hdr;
-    uint32_t client_id;
-    uint8_t guid[32];
-    uint8_t crypted_key_data[0];
+    struct key_data_blob data_in;
 };
 
 struct ree_tee_pub_key_resp_cmd

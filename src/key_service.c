@@ -126,11 +126,10 @@ exit:
     return r;
 }
 
-static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint32_t length, uint8_t *guid )
+static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint32_t length, UNUSED uint8_t *guid )
 {
     int err;
     size_t data_length = length + (16 - length%16);
-    struct ree_tee_key_data_storage *chk = (struct ree_tee_key_data_storage*)key_data;
 
     void *data =  malloc(data_length);
     if (!data)
@@ -138,24 +137,17 @@ static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint
 
     memset(data, 0, data_length);
 
-    if (memcmp(guid, &chk->key_info.guid[0], 32) == 0)
-    {
-        ZF_LOGI("Plain textdata, encryption not needed");
-        memcpy(data,key_data,length);
-    }
-    else
-    {
-        err = tee_fs_crypt_block(&uuid, data,
-                    key_data, length, 1, fek,TEE_MODE_DECRYPT);
+    err = tee_fs_crypt_block(&uuid, data,
+                key_data, length, 1, fek,TEE_MODE_DECRYPT);
 
-        if (err)
-        {
-            ZF_LOGI("Data decrypt failed %d", err);
-            free(data);
-            return NULL;
+    if (err)
+    {
+        ZF_LOGI("Data decrypt failed %d", err);
+        free(data);
+        return NULL;
 
-        }
     }
+
     return (struct ree_tee_key_data_storage *)data;
 }
 
@@ -289,11 +281,19 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
 }
 
 
-int extract_public_key(uint8_t *key_data, uint32_t key_data_length, uint8_t *guid,  uint32_t clientid, struct ree_tee_key_info *keyinfo, uint8_t *key, uint32_t max_size)
+int extract_public_key(struct key_data_blob *key_data, uint32_t key_data_length, struct ree_tee_key_info *keyinfo, uint8_t *key, uint32_t max_size)
 {
-    /*Decrypt payload*/
 
-    struct ree_tee_key_data_storage *payload = decrypt_key_data(key_data, key_data_length, guid );
+    /* plaintext payload */
+    if(key_data->key_data_info.format == KEY_RSA_PLAINTEXT)
+    {
+        memcpy(keyinfo, &key_data->key_data_info, sizeof(struct ree_tee_key_info));
+        memcpy(&key[0], &key_data->key_data.keys[0], key_data->key_data.key_info.pubkey_length);
+        return 0;
+    }
+
+    /*Decrypt payload*/
+    struct ree_tee_key_data_storage *payload = decrypt_key_data((uint8_t*)&key_data->key_data, key_data_length, key_data->key_data_info.guid );
 
 
     if (!payload)
@@ -301,8 +301,8 @@ int extract_public_key(uint8_t *key_data, uint32_t key_data_length, uint8_t *gui
 
     /* Check Client id*/
 
-    if (clientid != payload->key_info.client_id) {
-        ZF_LOGE("ERROR clientid mismatch: %d (%d)", payload->key_info.client_id, clientid);
+    if (key_data->key_data_info.client_id != payload->key_info.client_id) {
+        ZF_LOGE("ERROR clientid mismatch: %d (%d)", payload->key_info.client_id, key_data->key_data_info.client_id);
         free(payload);
         return -ENXIO;
     }

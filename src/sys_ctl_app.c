@@ -341,10 +341,9 @@ static void handle_service_requests(void)
                 struct ipc_msg_pubkey_export_resp *sel4_resp =
                     (struct ipc_msg_pubkey_export_resp *)sel4_ipc_reply.buf;
 
-                uint8_t *key_data_ptr = (uint8_t *)app_shared_memory;
+
+                struct key_data_blob *key_data_ptr = (struct key_data_blob *)app_shared_memory;
                 uint32_t key_data_length = sel4_req->key_blob_size;
-                uint8_t *guid_ptr = (uint8_t *)(app_shared_memory + sel4_req->guid_offset);
-                uint32_t client_id = sel4_req->client_id;
 
                 struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info *)((uint8_t*)key_data_ptr + key_data_length);
                 uintptr_t keyinfo_off = (uintptr_t)keyinfo_ptr - (uintptr_t)app_shared_memory;
@@ -353,9 +352,9 @@ static void handle_service_requests(void)
                 uintptr_t pubkey_off = (uintptr_t)pubkey_ptr - (uintptr_t)app_shared_memory;
 
                 uint32_t max_size = shared_memory_size - (pubkey_ptr - (uint8_t*)app_shared_memory);
-                ZF_LOGI("Max size %u clientid %u", max_size,client_id);
+                ZF_LOGI("Max size %u clientid %u", max_size,key_data_ptr->key_data_info.client_id);
 
-                int err = extract_public_key(key_data_ptr, key_data_length, guid_ptr, client_id, keyinfo_ptr, pubkey_ptr, max_size);
+                int err = extract_public_key(key_data_ptr, key_data_length, keyinfo_ptr, pubkey_ptr, max_size);
 
                 if (!err) {
                     sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_pubkey_export_resp);

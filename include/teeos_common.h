@@ -87,8 +87,6 @@ struct ipc_msg_key_create_resp {
 struct ipc_msg_pubkey_export_req {
     seL4_Word cmd_id;
     seL4_Word key_blob_size;
-    seL4_Word guid_offset;
-    seL4_Word client_id;
 };
 
 struct ipc_msg_pubkey_export_resp {
