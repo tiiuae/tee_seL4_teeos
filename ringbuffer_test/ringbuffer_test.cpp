@@ -19,12 +19,14 @@ protected:
 
     RingBufferTest()
     {
+        // CIRC buffer header
+        memset(&circ_hdr, 0x0, sizeof(circ_hdr));
+        circ.hdr = &circ_hdr;
+        circ.hdr->buf_len = CIRC_BUF_LEN;
+
+        // CIRC buffer
         mem_buffer.resize(CIRC_BUF_LEN, 0);
-
-        memset(&circ, 0x0, sizeof(circ));
-
         circ.buf = mem_buffer.data();
-        circ.buf_len = CIRC_BUF_LEN;
     }
 
     void PrintBuffer()
@@ -34,12 +36,12 @@ protected:
 
     void PrintCounters()
     {
-        std::cout << "PrintCounters" << std::endl << "    head: " << circ.head << ", tail: " << circ.tail << std::endl;
+        std::cout << "PrintCounters" << std::endl << "    head: " << circ.hdr->head << ", tail: " << circ.hdr->tail << std::endl;
 
-        int cnt = CIRC_CNT(circ.head, circ.tail, CIRC_BUF_LEN);
-        int cnt_end = CIRC_CNT_TO_END(circ.head, circ.tail, CIRC_BUF_LEN);
-        int space = CIRC_SPACE(circ.head, circ.tail, CIRC_BUF_LEN);
-        int space_end = CIRC_SPACE_TO_END(circ.head, circ.tail, CIRC_BUF_LEN);
+        int cnt = CIRC_CNT(circ.hdr->head, circ.hdr->tail, CIRC_BUF_LEN);
+        int cnt_end = CIRC_CNT_TO_END(circ.hdr->head, circ.hdr->tail, CIRC_BUF_LEN);
+        int space = CIRC_SPACE(circ.hdr->head, circ.hdr->tail, CIRC_BUF_LEN);
+        int space_end = CIRC_SPACE_TO_END(circ.hdr->head, circ.hdr->tail, CIRC_BUF_LEN);
 
         std::cout << "    cnt:        " << cnt << std::endl;
         std::cout << "    cnt_end:    " << cnt_end << std::endl;
@@ -55,7 +57,7 @@ protected:
             ASSERT_EQ(res, 0) << "idx: " << i;
         }
 
-        ASSERT_EQ(circ.head, loops);
+        ASSERT_EQ(circ.hdr->head, loops);
     }
 
     void FillBufferFromStartInc()
@@ -66,18 +68,19 @@ protected:
 
         int res = write_wrapper(&circ, CIRC_BUF_LEN - 1, values.data());
         ASSERT_EQ(res, 0);
-        ASSERT_EQ(circ.head, CIRC_BUF_LEN - 1);
+        ASSERT_EQ(circ.hdr->head, CIRC_BUF_LEN - 1);
     }
 
     static constexpr uint32_t CIRC_BUF_LEN = (1 << 4); // 16
 
-    std::vector<char> mem_buffer;
+    std::vector<char> mem_buffer; /* only for buffer payload */
 //    struct tee_comm_ctrl ctrl;
 //    struct tee_comm_ch circ;
 
     volatile bool thread_stop = false;
     std::mutex print_mtx;
 
+    struct circ_buf_hdr circ_hdr;
     struct circ_ctx circ;
 
 public:
@@ -191,14 +194,14 @@ TEST_F(RingBufferTest, WriteSingleItem)
     // Fill buffer
     FillBufferFromStart(data);
 
-    int head = circ.head;
+    int head = circ.hdr->head;
 
     // Buffer full, adding more data fails
     res = write_wrapper(&circ, 1, &data);
     ASSERT_NE(res, 0);
 
     // Head stays the same
-    ASSERT_EQ(circ.head, head);
+    ASSERT_EQ(circ.hdr->head, head);
 
     {
         std::vector<char> result = {
@@ -233,7 +236,7 @@ TEST_F(RingBufferTest, WriteWithArray)
     res = write_wrapper(&circ, data_in.size(), data_in.data());
     ASSERT_EQ(res, 0);
 
-    ASSERT_EQ(circ.head, data_in.size());
+    ASSERT_EQ(circ.hdr->head, data_in.size());
 
     {
         std::vector<char> result = {
@@ -261,7 +264,7 @@ TEST_F(RingBufferTest, WriteWithArray)
     res = write_wrapper(&circ, data_in.size(), data_in.data());
     ASSERT_EQ(res, 0);
 
-    ASSERT_EQ(circ.head, data_in.size() * 2);
+    ASSERT_EQ(circ.hdr->head, data_in.size() * 2);
 
     {
         std::vector<char> result = {
@@ -294,7 +297,7 @@ TEST_F(RingBufferTest, WriteWithArray)
     res = write_wrapper(&circ, 3, data_in.data());
     ASSERT_EQ(res, 0);
 
-    ASSERT_EQ(circ.head, CIRC_BUF_LEN - 1);
+    ASSERT_EQ(circ.hdr->head, CIRC_BUF_LEN - 1);
 
     {
         std::vector<char> result = {
@@ -330,7 +333,7 @@ TEST_F(RingBufferTest, WriteBufferOverflow)
     res = write_wrapper(&circ, data_in.size(), data_in.data());
     ASSERT_NE(res, 0);
 
-    ASSERT_EQ(circ.head, 0);
+    ASSERT_EQ(circ.hdr->head, 0);
 }
 
 TEST_F(RingBufferTest, WriteZeroBytes) 
@@ -343,7 +346,7 @@ TEST_F(RingBufferTest, WriteZeroBytes)
     res = write_wrapper(&circ, 0, data_in.data());
     ASSERT_EQ(res, 0);
 
-    ASSERT_EQ(circ.head, 0);
+    ASSERT_EQ(circ.hdr->head, 0);
 
     // No actual writes
     std::vector<char> result(CIRC_BUF_LEN, 0);
@@ -367,7 +370,7 @@ TEST_F(RingBufferTest, ReadSingleItem)
     ASSERT_EQ(res, 0);
 
     ASSERT_EQ(received, 1);
-    ASSERT_EQ(circ.tail, 1);
+    ASSERT_EQ(circ.hdr->tail, 1);
 
     {
         std::vector<char> result = {
@@ -397,7 +400,7 @@ TEST_F(RingBufferTest, ReadSingleItem)
         ASSERT_EQ(res, 0) << "idx: " << i;
     }
 
-    ASSERT_EQ(circ.tail, 15);
+    ASSERT_EQ(circ.hdr->tail, 15);
 
     // This read should fail
     char single_char = 0;
@@ -405,7 +408,7 @@ TEST_F(RingBufferTest, ReadSingleItem)
     ASSERT_NE(res, 0);
 
     ASSERT_EQ(received, 0);
-    ASSERT_EQ(circ.tail, 15);
+    ASSERT_EQ(circ.hdr->tail, 15);
 
     {
         std::vector<char> result = {
@@ -445,7 +448,7 @@ TEST_F(RingBufferTest, ReadChunks)
     ASSERT_EQ(res, 0);
 
     ASSERT_EQ(received, read_count);
-    ASSERT_EQ(circ.tail, read_count);
+    ASSERT_EQ(circ.hdr->tail, read_count);
 
     {
         std::vector<char> result = {
@@ -475,7 +478,7 @@ TEST_F(RingBufferTest, ReadChunks)
     ASSERT_EQ(res, 0);
 
     ASSERT_EQ(received, read_count);
-    ASSERT_EQ(circ.tail, read_count * 2);
+    ASSERT_EQ(circ.hdr->tail, read_count * 2);
 
     {
         std::vector<char> result = {
@@ -505,7 +508,7 @@ TEST_F(RingBufferTest, ReadChunks)
     ASSERT_EQ(res, 0);
 
     ASSERT_EQ(received, 3);
-    ASSERT_EQ(circ.tail, 15);
+    ASSERT_EQ(circ.hdr->tail, 15);
 
     {
         std::vector<char> result = {
@@ -544,7 +547,7 @@ TEST_F(RingBufferTest, ReadEmptyBuffer)
     ASSERT_NE(res, 0);
 
     ASSERT_EQ(received, 0);
-    ASSERT_EQ(circ.tail, 0);
+    ASSERT_EQ(circ.hdr->tail, 0);
 }
 
 TEST_F(RingBufferTest, ReadZeroBytes) 
@@ -560,7 +563,7 @@ TEST_F(RingBufferTest, ReadZeroBytes)
     ASSERT_NE(res, 0);
 
     ASSERT_EQ(received, 0);
-    ASSERT_EQ(circ.tail, 0);
+    ASSERT_EQ(circ.hdr->tail, 0);
 
     ASSERT_EQ(data, 9);
 }
@@ -582,8 +585,8 @@ TEST_F(RingBufferTest, WriteReadWrap)
     res = write_wrapper(&circ, CIRC_BUF_LEN - 1, gen_val.data());
     ASSERT_EQ(res, 0);
 
-    ASSERT_EQ(circ.head, 15);
-    ASSERT_EQ(circ.tail, 0);
+    ASSERT_EQ(circ.hdr->head, 15);
+    ASSERT_EQ(circ.hdr->tail, 0);
     // CIRC_BUF = {
     //     1,  /* 00 */ <- tail
     //     2,  /* 01 */
@@ -608,8 +611,8 @@ TEST_F(RingBufferTest, WriteReadWrap)
     res = read_wrapper(&circ, read_count, read_buffer.data(), &received);
     ASSERT_EQ(res, 0);
 
-    ASSERT_EQ(circ.head, 15);
-    ASSERT_EQ(circ.tail, 3);
+    ASSERT_EQ(circ.hdr->head, 15);
+    ASSERT_EQ(circ.hdr->tail, 3);
     // CIRC_BUF = {
     //     1,  /* 00 */
     //     2,  /* 01 */
@@ -634,8 +637,8 @@ TEST_F(RingBufferTest, WriteReadWrap)
     res = write_wrapper(&circ, write_count, gen_val.data() + (CIRC_BUF_LEN - 1));
     ASSERT_EQ(res, 0);
 
-    ASSERT_EQ(circ.head, 2);
-    ASSERT_EQ(circ.tail, 3);
+    ASSERT_EQ(circ.hdr->head, 2);
+    ASSERT_EQ(circ.hdr->tail, 3);
     // CIRC_BUF = {
     //     17,  /* 00 */ write [1]
     //     18,  /* 01 */ write [2]
@@ -684,8 +687,8 @@ TEST_F(RingBufferTest, WriteReadWrap)
     ASSERT_EQ(res, 0);
     ASSERT_EQ(received, read_count);
 
-    ASSERT_EQ(circ.head, 2);
-    ASSERT_EQ(circ.tail, 2);
+    ASSERT_EQ(circ.hdr->head, 2);
+    ASSERT_EQ(circ.hdr->tail, 2);
     // CIRC_BUF = {
     //     17,  /* 00 */
     //     18,  /* 01 */

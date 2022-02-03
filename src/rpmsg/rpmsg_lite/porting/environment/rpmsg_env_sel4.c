@@ -85,9 +85,12 @@ static struct isr_info isr_table[ISR_COUNT];
 
 /* Circular buffer config & control */
 struct queue_ctx {
+    struct circ_buf_hdr circ_hdr; /* linked to struct circ_ctx */
     struct circ_ctx circ;
+
     sync_spinlock_t writer_lock;
     sync_spinlock_t reader_lock;
+
     int32_t element_size;
     int32_t element_count;
 };
@@ -418,8 +421,8 @@ void env_isr(uint32_t vector)
 int32_t env_create_queue(void **queue, int32_t length, int32_t element_size)
 {
     int32_t queue_bytes = length * element_size;
-    int32_t ctx_buf_len = 0;
-    void *ctx_buf = NULL;
+    int32_t buf_len = 0;
+    void *mem_buf = NULL;
     struct queue_ctx *ctx = NULL;
 
     /* circular buffer requires power of 2 length */
@@ -427,29 +430,32 @@ int32_t env_create_queue(void **queue, int32_t length, int32_t element_size)
         queue_bytes = NEXT_POWER_OF_2(queue_bytes);
     }
 
-    /* Allocate mem for both CIRC buffer and ctx struct 
-     *     { 
+    /* Allocate mem for both CIRC buffer and ctx struct
+     *     {
      *         [CIRC buffer / queue],
      *         struct queue_ctx
      *     }
      */
-    ctx_buf_len = queue_bytes + sizeof(struct queue_ctx);
+    buf_len = queue_bytes + sizeof(struct queue_ctx);
 
-    ctx_buf = env_allocate_memory(ctx_buf_len);
-    if (!ctx_buf) {
+    mem_buf = env_allocate_memory(buf_len);
+    if (!mem_buf) {
         ZF_LOGE("out of memory");
         return RL_ERR_NO_MEM;
     }
 
-    memset(ctx_buf, 0x0, ctx_buf_len);
+    memset(mem_buf, 0x0, buf_len);
 
     /* Locate ctx area after CIRC buffer. Queue length is power of 2 which
      * also aligns the following struct */
-    ctx = ctx_buf + queue_bytes;
+    ctx = mem_buf + queue_bytes;
 
-    /* link actual CIRC buffer to ctrl*/
-    ctx->circ.buf = ctx_buf;
-    ctx->circ.buf_len = queue_bytes;
+    /* link CIRC buffer memory to ctx */
+    ctx->circ.buf = mem_buf;
+    /* link CIRC header memory to ctx */
+    ctx->circ.hdr = &ctx->circ_hdr;
+
+    ctx->circ.hdr->buf_len = queue_bytes;
 
     ctx->element_size = element_size;
 
