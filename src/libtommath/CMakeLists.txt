@@ -170,7 +170,13 @@ list(APPEND tommath_include_dirs
 target_include_directories(tommath
 PUBLIC
     ${tommath_include_dirs}
-)   
+)
+
+
+target_compile_options(tommath
+PRIVATE
+    -O2
+)
 
 target_link_libraries(tommath
     PUBLIC

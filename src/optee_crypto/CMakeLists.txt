@@ -117,6 +117,11 @@ CFG_TEE_CORE_LOG_LEVEL=4
 TRACE_LEVEL=4
  )
 
+ target_compile_options(opteecrypt
+ PRIVATE
+     -O2
+ )
+
 target_link_libraries(opteecrypt
     PUBLIC
         muslc

@@ -227,6 +227,12 @@ LTC_EASY
 LTC_GCM_MODE
  )
 
+
+ target_compile_options(tomcrypt
+ PRIVATE
+     -O2
+ )
+
 target_link_libraries(tomcrypt
     PUBLIC
         muslc
