@@ -44,7 +44,7 @@ enum ree_tee_msg {
 };
 
 enum tee_status {
-    TEE_NOK = -5000,
+    TEE_NOK = -9000,            /* RL_ERRORS_BASE: -5000 */
     TEE_UNKNOWN_MSG,
     TEE_INVALID_MSG_SIZE,
     TEE_IPC_CMD_ERR,
