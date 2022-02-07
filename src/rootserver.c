@@ -31,6 +31,7 @@
 #include <vka/capops.h>
 #include <sel4platsupport/device.h>
 #include "rpmsg_sel4.h"
+#include "sel4_crashlog.h"
 
 #include <utils/zf_log.h>
 
@@ -96,6 +97,8 @@ struct root_env {
 
     seL4_CPtr rpmsg_irq_ntf;
     struct sel4_rpmsg_config rpmsg;
+
+    struct crashlog_ctx crashlog;
 };
 static struct root_env root_ctx = { 0 };
 
@@ -577,6 +580,8 @@ static int map_sel4_crashlog_rootserver(struct root_env *ctx)
 
     /* Clear shared buffer memory area */
     memset(fdt_token.config->root_addr, 0x0, fdt_token.config->len);
+
+    sel4_crashlog_setup_cb(&ctx->crashlog, fdt_token.config->root_addr);
 
     ZF_LOGI("crashlog: pa %p", (void*)fdt_token.config->paddr);
 
