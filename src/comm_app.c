@@ -291,10 +291,8 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
     return 0;
 
 err_out:
-    if (*reply_msg) {
-        free(*reply_msg);
-        *reply_msg = NULL;
-    }
+    free(*reply_msg);
+    *reply_msg = NULL;
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -367,10 +365,8 @@ static int ree_tee_snvm_read_req(struct ree_tee_hdr *ree_msg,
     return 0;
 
 err_out:
-    if (*reply_msg) {
-        free(*reply_msg);
-        *reply_msg = NULL;
-    }
+    free(*reply_msg);
+    *reply_msg = NULL;
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -440,10 +436,8 @@ static int ree_tee_snvm_write_req(struct ree_tee_hdr *ree_msg,
     return 0;
 
 err_out:
-    if (*reply_msg) {
-        free(*reply_msg);
-        *reply_msg = NULL;
-    }
+    free(*reply_msg);
+    *reply_msg = NULL;
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -506,10 +500,8 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
     return 0;
 
 err_out:
-    if (*reply_msg) {
-        free(*reply_msg);
-        *reply_msg = NULL;
-    }
+    free(*reply_msg);
+    *reply_msg = NULL;
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -581,10 +573,8 @@ static int ree_tee_puf_req(struct ree_tee_hdr *ree_msg,
     return 0;
 
 err_out:
-    if (*reply_msg) {
-        free(*reply_msg);
-        *reply_msg = NULL;
-    }
+    free(*reply_msg);
+    *reply_msg = NULL;
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -652,10 +642,8 @@ static int ree_tee_nvm_param_req(struct ree_tee_hdr *ree_msg,
     return 0;
 
 err_out:
-    if (*reply_msg) {
-        free(*reply_msg);
-        *reply_msg = NULL;
-    }
+    free(*reply_msg);
+    *reply_msg = NULL;
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -727,10 +715,8 @@ static int ree_tee_sign_req(struct ree_tee_hdr *ree_msg,
     return 0;
 
 err_out:
-    if (*reply_msg) {
-        free(*reply_msg);
-        *reply_msg = NULL;
-    }
+    free(*reply_msg);
+    *reply_msg = NULL;
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -815,9 +801,7 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
     return 0;
 
 err_out:
-    if (resp) {
-        free(resp);
-    }
+    free(resp);
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -920,9 +904,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     return 0;
 
 err_out:
-    if (resp) {
-        free(resp);
-    }
+    free(resp);
 
     SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
 
@@ -1010,10 +992,8 @@ static int wait_ree_rpmsg_msg()
             return err;
         }
 
-        if (reply) {
-            free(reply);
-            reply = NULL;
-        }
+        free(reply);
+        reply = NULL;
     }
 
     return err;

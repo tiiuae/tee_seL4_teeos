@@ -291,9 +291,7 @@ static int rpmsg_next_msg(struct rpmsg_comm_stack *handle, char **recv_cmd, uint
     return 0;
 
 err_out:
-    if (msg_buf) {
-        env_free_memory(msg_buf);
-    }
+    env_free_memory(msg_buf);
 
     return err;
 }
