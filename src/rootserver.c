@@ -46,14 +46,13 @@
 #define FDT_PATH_MBOX                   "/mailbox"
 #define FDT_PATH_SYSREGCB               "/sysregscb"
 #define FDT_PATH_RPMSG                  "/rpmsg"
+#define FDT_PATH_CRASHLOG               "/sel4_crashlog"
 
 #define RESUME_PROCESS                  1
 
 #define TEE_COMM_APP_BADGE              0x80
 #define SYS_APP_BADGE                   0x81
 #define SHARED_MEM_PAGE_COUNT           8
-
-
 #define IHC_BUF_PAGES                   1
 
 struct fdt_config {
@@ -70,6 +69,7 @@ struct app_env {
     seL4_CPtr app_ep1;
     void *shared_mem;
     uint32_t shared_len;
+    void *crashlog;
 };
 
 struct root_env {
@@ -86,6 +86,7 @@ struct root_env {
     struct fdt_config mbox;
     struct fdt_config sysregcb;
     struct fdt_config rpmsg_vring;
+    struct fdt_config crashlog_mem;
 
     seL4_CPtr root_ep;
     seL4_CPtr inter_app_ep1;
@@ -242,14 +243,14 @@ static int create_shared_buffer(struct root_env *ctx, struct app_env *app_1, str
         return ENOMEM;
     }
 
-    ZF_LOGI("Root Addr = %p APP_1 addr = %p APP_2 addr = %p", root_vaddr, app_1->shared_mem, app_2->shared_mem);
+    ZF_LOGI("IPC shmem: Root Addr = %p APP_1 addr = %p APP_2 addr = %p", root_vaddr, app_1->shared_mem, app_2->shared_mem);
     return 0;
 }
 
 static int fdt_reg_cb(pmem_region_t pmem, unsigned curr_num, size_t num_regs, void *token)
 {
     struct fdt_cb_token *fdt_token = (struct fdt_cb_token *)token;
-    
+
     if (curr_num != 0) {
         ZF_LOGF("invalid reg: %d", curr_num);
         return EINVAL;
@@ -557,9 +558,65 @@ static int map_rpmsg_vring(struct root_env *ctx)
     return err;
 }
 
+static int map_sel4_crashlog_rootserver(struct root_env *ctx)
+{
+    int err = -1;
+
+    struct fdt_cb_token fdt_token = {
+        .ctx = ctx,
+    };
+
+    fdt_token.fdt_path = FDT_PATH_CRASHLOG;
+    fdt_token.config = &ctx->crashlog_mem;
+
+    /* Map only to rootserver */
+    err = map_from_fdt(ctx, &fdt_token, NULL);
+    if (err) {
+        return err;
+    }
+
+    /* Clear shared buffer memory area */
+    memset(fdt_token.config->root_addr, 0x0, fdt_token.config->len);
+
+    ZF_LOGI("crashlog: pa %p", (void*)fdt_token.config->paddr);
+
+    return err;
+}
+
+static int map_sel4_crashlog_apps(struct root_env *ctx)
+{
+    struct app_env *app = &ctx->comm_app;
+
+    app->crashlog = vspace_share_mem(&ctx->vspace, &app->app_proc.vspace,
+                                     ctx->crashlog_mem.root_addr,
+                                     BYTES_TO_4K_PAGES(ctx->crashlog_mem.len),
+                                     PAGE_BITS_4K, seL4_AllRights, 1);
+    if (!app->crashlog) {
+        ZF_LOGF("Mapping shared memory failed");
+        return -ENOMEM;
+    }
+
+    ZF_LOGI("crashlog comm_app: %p", app->crashlog);
+
+    app = &ctx->sys_app;
+    app->crashlog = vspace_share_mem(&ctx->vspace, &app->app_proc.vspace,
+                                     ctx->crashlog_mem.root_addr,
+                                     BYTES_TO_4K_PAGES(ctx->crashlog_mem.len),
+                                     PAGE_BITS_4K, seL4_AllRights, 1);
+
+    if (!app->crashlog) {
+        ZF_LOGF("Mapping shared memory failed");
+        return -ENOMEM;
+    }
+
+    ZF_LOGI("crashlog sys_app:  %p", app->crashlog);
+
+    return 0;
+}
+
 static int setup_ihc_buf(struct root_env *ctx)
 {
-    void *ihc_page = vspace_new_pages(&ctx->vspace, 
+    void *ihc_page = vspace_new_pages(&ctx->vspace,
                                      seL4_AllRights,
                                      IHC_BUF_PAGES,
                                      seL4_PageBits);
@@ -727,7 +784,7 @@ int main(void)
     }
 
     bootstrap_configure_virtual_pool(allocman,
-                                     vstart, 
+                                     vstart,
                                      ALLOCATOR_VIRTUAL_POOL_SIZE,
                                      simple_get_pd(&ctx->simple));
 
@@ -746,6 +803,11 @@ int main(void)
 
     simple_print(&ctx->simple);
 
+    err = map_sel4_crashlog_rootserver(ctx);
+    if (err) {
+        return err;
+    }
+
     ZF_LOGI("build date: %s - %s", __DATE__, __TIME__);
 
     /* Create endpoints for app <-> rootserver and app <-> app IPC */
@@ -761,6 +823,12 @@ int main(void)
     }
 
     err = lauch_app(ctx, &ctx->sys_app, CONFIG_SYS_APP_NAME, SYS_APP_BADGE);
+    if (err) {
+        return err;
+    }
+
+    /* Apps mapping can be done after apps are launched */
+    err = map_sel4_crashlog_apps(ctx);
     if (err) {
         return err;
     }
