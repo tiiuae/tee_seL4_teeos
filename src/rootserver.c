@@ -391,6 +391,37 @@ static void send_comm_ch_addr(struct root_env *ctx)
     seL4_Reply(msg_info);
 }
 
+static void send_crashlog_addr(struct root_env *ctx, seL4_Word sender)
+{
+    struct ipc_msg_crash_log_addr crashlog = {
+        .cmd_id = IPC_CMD_CRASHLOG_RESP,
+    };
+
+    const uint32_t msg_words = IPC_CMD_WORDS(crashlog);
+
+    switch (sender) {
+    case TEE_COMM_APP_BADGE:
+        crashlog.crashlog = (seL4_Word)ctx->comm_app.crashlog;
+        break;
+    case SYS_APP_BADGE:
+        crashlog.crashlog = (seL4_Word)ctx->sys_app.crashlog;
+        break;
+    /* Do nothing for unknown senders */
+    default:
+        ZF_LOGE("unknown sender: 0x%lx", sender);
+    }
+
+    seL4_Word *msg_data = (seL4_Word *)&crashlog;
+
+    seL4_MessageInfo_t msg_info = seL4_MessageInfo_new(0, 0, 0, msg_words);
+    for (uint32_t i = 0; i < msg_words; i++) {
+        seL4_SetMR(i, msg_data[i]);
+    }
+
+    ZF_LOGI("Send IPC_CMD_CRASHLOG_RESP");
+    seL4_Reply(msg_info);
+}
+
 static void send_rpmsg_conf(struct root_env *ctx)
 {
     struct ipc_msg_ihc_buf hss_ihc = {
@@ -482,6 +513,9 @@ static void process_ipc_msg(struct root_env *ctx, seL4_Word sender, seL4_Word ms
     switch (ipc_cmd_id) {
     case IPC_CMD_CH_ADDR_REQ:
         send_comm_ch_addr(ctx);
+        break;
+    case IPC_CMD_CRASHLOG_REQ:
+        send_crashlog_addr(ctx, sender);
         break;
     case IPC_CMD_RPMSG_CONF_REQ:
         send_rpmsg_conf(ctx);

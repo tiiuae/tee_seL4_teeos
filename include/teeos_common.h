@@ -13,6 +13,8 @@
 enum ipc_cmd {
     IPC_CMD_CH_ADDR_REQ = 0x8000,
     IPC_CMD_CH_ADDR_RESP,
+    IPC_CMD_CRASHLOG_REQ,
+    IPC_CMD_CRASHLOG_RESP,
     IPC_CMD_APP_EP_REQ,
     IPC_CMD_APP_EP_RESP,
     IPC_CMD_RPMSG_CONF_REQ,
@@ -52,6 +54,11 @@ struct ipc_msg_ch_addr {
     seL4_Word shared_memory;    /* Shared memory for applications */
     seL4_Word shared_len;       /* Shared memory length */
 
+};
+
+struct ipc_msg_crash_log_addr {
+    seL4_Word cmd_id;
+    seL4_Word crashlog;         /* Crashlog shared memory */
 };
 
 struct ipc_msg_ihc_buf {

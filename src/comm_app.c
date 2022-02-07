@@ -27,10 +27,13 @@
 
 #include "rpmsg_sel4.h"
 
+#include "sel4_crashlog.h"
+
 static seL4_CPtr ipc_root_ep = 0;
 static seL4_CPtr ipc_app_ep1 = 0;
 static void *app_shared_memory;
 static uint32_t app_shared_len = 0;
+static struct crashlog_ctx crashlog = { 0 };
 
 struct comm_ch {
     struct sel4_rpmsg_config rpmsg_conf;
@@ -108,6 +111,35 @@ static int setup_comm_ch(void)
 
     app_shared_memory = (void *)ipc_resp.shared_memory;
     app_shared_len = ipc_resp.shared_len;
+
+    return 0;
+}
+
+static int setup_crashlog(void)
+{
+    int error = -1;
+
+    seL4_Word ipc_req = IPC_CMD_CRASHLOG_REQ;
+
+    struct ipc_msg_crash_log_addr ipc_resp = { 0 };
+
+    ZF_LOGI("seL4_Call: IPC_CMD_CRASHLOG_REQ");
+
+    error = ipc_msg_call(ipc_root_ep,
+                         SINGLE_WORD_MSG,
+                         &ipc_req,
+                         IPC_CMD_CRASHLOG_RESP,
+                         IPC_CMD_WORDS(ipc_resp),
+                         (seL4_Word *)&ipc_resp);
+
+    if (error) {
+        ZF_LOGF("error ipc_msg_call: %d", error);
+        return error;
+    }
+
+    sel4_crashlog_setup_cb(&crashlog, (void *)ipc_resp.crashlog);
+
+    ZF_LOGI("crashlog setup");
 
     return 0;
 }
@@ -1032,6 +1064,12 @@ int main(int argc, char **argv)
     }
 
     ZF_LOGI("ipc_root_ep: %p", (void *)ipc_root_ep);
+
+    /* Wait crashlog config from rootserver */
+    error = setup_crashlog();
+    if (error) {
+        return error;
+    }
 
     /* Wait app shared memory config from rootserver */
     error = setup_comm_ch();

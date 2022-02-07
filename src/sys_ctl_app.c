@@ -26,6 +26,8 @@
 #include <utils/fence.h>
 #include <utils/zf_log.h>
 
+#include "sel4_crashlog.h"
+
 struct sel4_ipc_call_data {
     uint32_t len;
     seL4_Word *buf;
@@ -44,6 +46,37 @@ static seL4_CPtr ipc_app_ep1 = 0;
 
 static void *app_shared_memory;
 static uint32_t shared_memory_size;
+
+static struct crashlog_ctx crashlog = { 0 };
+
+static int setup_crashlog(void)
+{
+    int error = -1;
+
+    seL4_Word ipc_req = IPC_CMD_CRASHLOG_REQ;
+
+    struct ipc_msg_crash_log_addr ipc_resp = { 0 };
+
+    ZF_LOGI("seL4_Call: IPC_CMD_CRASHLOG_REQ");
+
+    error = ipc_msg_call(ipc_root_ep,
+                         SINGLE_WORD_MSG,
+                         &ipc_req,
+                         IPC_CMD_CRASHLOG_RESP,
+                         IPC_CMD_WORDS(ipc_resp),
+                         (seL4_Word *)&ipc_resp);
+
+    if (error) {
+        ZF_LOGF("error ipc_msg_call: %d", error);
+        return error;
+    }
+
+    sel4_crashlog_setup_cb(&crashlog, (void *)ipc_resp.crashlog);
+
+    ZF_LOGI("crashlog setup");
+
+    return 0;
+}
 
 static int setup_sys_ctl_io(void)
 {
@@ -476,6 +509,12 @@ int main(int argc, char **argv)
     if (ipc_root_ep == 0) {
         ZF_LOGF("Invalid root endpoint");
         return -EFAULT;
+    }
+
+    /* Wait crashlog config from rootserver */
+    error = setup_crashlog();
+    if (error) {
+        return error;
     }
 
     error = setup_sys_ctl_io();
