@@ -54,6 +54,9 @@ static const TEE_UUID uuid = {
 
 static uint8_t fek[FEK_SIZE];
 
+
+static  struct ree_tee_key_data_storage  *active_key;
+
 static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uint32_t *pubkey_l, uint32_t *privkey_l)
 {
     static struct rsa_keypair key = {0};
@@ -321,4 +324,52 @@ int extract_public_key(struct key_data_blob *key_data, uint32_t key_data_length,
     /* Free payload */
     free(payload);
     return 0;
+}
+
+int import_key_blob(struct key_data_blob *key_data)
+{
+    uint32_t keytype = key_data->key_data_info.format;
+    struct ree_tee_key_data_storage *plain_key_data;
+
+    switch (keytype)
+    {
+    case KEY_RSA_CIPHERED:
+        plain_key_data = decrypt_key_data((uint8_t*)&key_data->key_data, key_data->key_data_info.storage_size, key_data->key_data_info.guid);
+        if (!plain_key_data)
+            return -EINVAL;
+        break;
+
+    case KEY_RSA_PLAINTEXT:
+        plain_key_data = malloc(key_data->key_data_info.storage_size);
+        if (!plain_key_data)
+            return -ENOMEM;
+        memcpy(plain_key_data, &key_data->key_data, key_data->key_data_info.storage_size);
+        break;
+    default:
+        ZF_LOGI("Unsupported keytype %u", keytype);
+        return -EINVAL;
+        break;
+    }
+
+    /* Check that keyblob is valid */
+
+    /* check that guid match*/
+
+    if (memcmp(plain_key_data->key_info.guid, key_data->key_data_info.guid, 32))
+    {
+        free(plain_key_data);
+        return -EINVAL;
+    }
+    /* free previous key */
+    free(active_key);
+
+    active_key = plain_key_data;
+
+    return 0;
+
+}
+
+void destroy_imported_key(void)
+{
+    free(active_key);
 }
