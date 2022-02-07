@@ -39,7 +39,8 @@ enum ipc_cmd {
     IPC_CMD_KEY_CREATE_RESP,
     IPC_CMD_KEY_PUBEXT_REQ,
     IPC_CMD_KEY_PUBEXT_RESP,
-
+    IPC_CMD_KEY_IMPORT_REQ,
+    IPC_CMD_KEY_IMPORT_RESP,
     IPC_CMD_SYS_FAIL = 0x8FFF,
     IPC_CMD_UNKNOWN,
     IPC_CMD_EMPTY,
@@ -100,6 +101,11 @@ struct ipc_msg_pubkey_export_resp {
     seL4_Word cmd_id;
     seL4_Word key_info_offset;
     seL4_Word pubkey_offset;
+};
+
+struct ipc_msg_key_import_req {
+    seL4_Word cmd_id;
+    seL4_Word key_blob_size;
 };
 
 #define SINGLE_WORD_MSG         1

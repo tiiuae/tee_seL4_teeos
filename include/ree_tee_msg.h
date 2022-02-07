@@ -40,6 +40,8 @@ enum ree_tee_msg {
     REE_TEE_GEN_KEY_RESP,
     REE_TEE_EXT_PUBKEY_REQ,
     REE_TEE_EXT_PUBKEY_RESP,
+    REE_TEE_KEY_IMPORT_REQ,
+    REE_TEE_KEY_IMPORT_RESP,
     REE_TEE_INVALID = -1,
 };
 
@@ -167,5 +169,12 @@ struct ree_tee_pub_key_resp_cmd
     struct ree_tee_key_info key_info;
     uint8_t pubkey[0];
 };
+
+struct ree_tee_key_import_cmd
+{
+    struct ree_tee_hdr hdr;
+    struct key_data_blob data_in;
+};
+
 
 #endif /* _REE_TEE_MSG_H_ */

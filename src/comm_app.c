@@ -71,6 +71,7 @@ DECL_MSG_FN(ree_tee_nvm_param_req);
 DECL_MSG_FN(ree_tee_sign_req);
 DECL_MSG_FN(ree_tee_gen_key_req);
 DECL_MSG_FN(ree_tee_ext_pubkey_req);
+DECL_MSG_FN(ree_tee_key_import_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -85,6 +86,8 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_SIGN_REQ, (uintptr_t)ree_tee_sign_req},
     {REE_TEE_GEN_KEY_REQ, (uintptr_t)ree_tee_gen_key_req},
     {REE_TEE_EXT_PUBKEY_REQ, (uintptr_t)ree_tee_ext_pubkey_req},
+    {REE_TEE_KEY_IMPORT_REQ, (uintptr_t)ree_tee_key_import_req},
+
 };
 
 static int setup_comm_ch(void)
@@ -910,6 +913,86 @@ err_out:
 
     return err;
 }
+
+/* ree_tee_msg_fn:
+ *     For succesfull operation function allocates memory for reply_msg.
+ *     Otherwise function sets err_msg and frees all allocated memory
+ */
+static int ree_tee_key_import_req(struct ree_tee_hdr *ree_msg,
+                               struct ree_tee_hdr **reply_msg,
+                               struct ree_tee_hdr *reply_err)
+{
+    int err = -1;
+    int32_t reply_type = REE_TEE_KEY_IMPORT_RESP;
+    int msg_err = TEE_NOK;
+
+    struct ipc_msg_key_import_req sel4_req = { 0 };
+    seL4_Word sel4_resp = 0;
+
+    /* REE messages */
+    struct ree_tee_key_import_cmd *cmd =
+        (struct ree_tee_key_import_cmd *)ree_msg;
+
+
+    /* Shared Memory: | Key blob  */
+    uint8_t *keyblob_ptr = (uint8_t*)app_shared_memory;
+    uint32_t key_blob_size = cmd->hdr.length
+                             - sizeof(struct ree_tee_hdr);
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    if (ree_msg->length < sizeof(struct ree_tee_key_import_cmd)) {
+        ZF_LOGE("Invalid Message size");
+        msg_err = TEE_INVALID_MSG_SIZE;
+        err = -EINVAL;
+        goto err_out;
+    }
+
+    /* Setup IPC data */
+    memcpy(keyblob_ptr, &cmd->data_in, key_blob_size);
+
+    /* copy data to ipc shared memory before seL4_Call*/
+    THREAD_MEMORY_RELEASE();
+
+    ZF_LOGI("Import key..");
+
+    sel4_req.cmd_id = IPC_CMD_KEY_IMPORT_REQ;
+    sel4_req.key_blob_size = key_blob_size;
+
+
+    err = ipc_msg_call(ipc_app_ep1,
+                       IPC_CMD_WORDS(sel4_req),
+                       (seL4_Word *)&sel4_req,
+                       IPC_CMD_KEY_IMPORT_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
+
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
+        msg_err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    *reply_msg = malloc(sizeof(struct ree_tee_hdr));
+    if (!*reply_msg) {
+        err = -ENOMEM;
+        msg_err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+
+    }
+
+    SET_REE_HDR(*reply_msg, reply_type, TEE_OK,  REE_HDR_LEN);
+
+    ZF_LOGI("Keyblob import done");
+
+    return 0;
+
+err_out:
+    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    return err;
+}
+
+
 
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
                             struct ree_tee_hdr **reply_msg,

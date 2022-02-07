@@ -402,11 +402,29 @@ static void handle_service_requests(void)
                 }
             }
             break;
+            case IPC_CMD_KEY_IMPORT_REQ:
+            {
+                ZF_LOGI("Key import request");
+
+                struct key_data_blob *key_data_ptr = (struct key_data_blob *)app_shared_memory;
+
+                int err = import_key_blob(key_data_ptr);
+
+                if (!err) {
+                     SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_KEY_IMPORT_RESP);
+                }
+                else {
+                    ZF_LOGI("Key import failed %d ", err);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
+                }
+            }
+            break;
             default:
                 ZF_LOGI("Unsupported message 0x%lx", sel4_ipc_recv.buf[0]);
                 SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_UNKNOWN);
                 break;
         }
+
 
         msg_info = seL4_MessageInfo_new(0, 0, 0, sel4_ipc_reply.len);
 
