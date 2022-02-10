@@ -6,7 +6,7 @@
 
 /* Local log level */
 #define ZF_LOG_LEVEL ZF_LOG_INFO
-#define PLAINTEXT_DATA
+// #define PLAINTEXT_DATA
 
 #include <teeos/gen_config.h>
 
