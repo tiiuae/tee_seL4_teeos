@@ -230,7 +230,7 @@ static int ree_tee_status_req(struct ree_tee_hdr *ree_msg __attribute__((unused)
     *reply_msg = malloc(sizeof(struct ree_tee_hdr));
     if (!*reply_msg) {
         SET_REE_HDR(reply_err, reply_type, TEE_OUT_OF_MEMORY, REE_HDR_LEN);
-        return -ENOMEM;
+        return TEE_OUT_OF_MEMORY;
     }
 
     SET_REE_HDR(*reply_msg, reply_type, TEE_OK, sizeof(struct ree_tee_hdr));
@@ -248,7 +248,6 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
 {
     int err = -1;
     int32_t reply_type = REE_TEE_RNG_RESP;
-    int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_rng_cmd);
 
     seL4_Word sel4_req = IPC_CMD_SYS_CTL_RNG_REQ;
@@ -261,8 +260,7 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
 
     *reply_msg = malloc(cmd_len);
     if (!*reply_msg) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
 
@@ -282,7 +280,7 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -297,7 +295,7 @@ err_out:
     free(*reply_msg);
     *reply_msg = NULL;
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -312,7 +310,6 @@ static int ree_tee_snvm_read_req(struct ree_tee_hdr *ree_msg,
 {
     int err = -1;
     int32_t reply_type = REE_TEE_SNVM_READ_RESP;
-    int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_snvm_cmd);
 
     seL4_Word sel4_req = IPC_CMD_SYS_CTL_SNVM_READ_REQ;
@@ -326,15 +323,13 @@ static int ree_tee_snvm_read_req(struct ree_tee_hdr *ree_msg,
 
     if (ree_msg->length != cmd_len) {
         ZF_LOGE("Invalid Message size");
-        msg_err = TEE_INVALID_MSG_SIZE;
-        err = -EINVAL;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
     *reply_msg = malloc(cmd_len);
     if (!*reply_msg) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
     memset(*reply_msg, 0x0, cmd_len);
@@ -353,7 +348,7 @@ static int ree_tee_snvm_read_req(struct ree_tee_hdr *ree_msg,
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -371,7 +366,7 @@ err_out:
     free(*reply_msg);
     *reply_msg = NULL;
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -386,7 +381,6 @@ static int ree_tee_snvm_write_req(struct ree_tee_hdr *ree_msg,
 {
     int err = -1;
     int32_t reply_type = REE_TEE_SNVM_WRITE_RESP;
-    int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_snvm_cmd);
 
     seL4_Word sel4_req = IPC_CMD_SYS_CTL_SNVM_WRITE_REQ;
@@ -400,15 +394,13 @@ static int ree_tee_snvm_write_req(struct ree_tee_hdr *ree_msg,
 
     if (ree_msg->length != cmd_len) {
         ZF_LOGE("Invalid Message size");
-        msg_err = TEE_INVALID_MSG_SIZE;
-        err = -EINVAL;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
     *reply_msg = malloc(cmd_len);
     if (!*reply_msg) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
     memset(*reply_msg, 0x0, cmd_len);
@@ -429,7 +421,7 @@ static int ree_tee_snvm_write_req(struct ree_tee_hdr *ree_msg,
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -442,7 +434,7 @@ err_out:
     free(*reply_msg);
     *reply_msg = NULL;
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -457,7 +449,6 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
 {
     int err = -1;
     int32_t reply_type = REE_TEE_DEVICEID_RESP;
-    int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_deviceid_cmd);
 
     seL4_Word sel4_req = IPC_CMD_SYS_CTL_DEVICEID_REQ;
@@ -470,8 +461,7 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
 
     *reply_msg = malloc(cmd_len);
     if (!*reply_msg) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
 
@@ -491,7 +481,7 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -506,7 +496,7 @@ err_out:
     free(*reply_msg);
     *reply_msg = NULL;
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -521,7 +511,6 @@ static int ree_tee_puf_req(struct ree_tee_hdr *ree_msg,
 {
     int err = -1;
     int32_t reply_type = REE_TEE_PUF_RESP;
-    int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_puf_cmd);
 
     seL4_Word sel4_req = IPC_CMD_SYS_CTL_PUF_REQ;
@@ -535,15 +524,13 @@ static int ree_tee_puf_req(struct ree_tee_hdr *ree_msg,
 
     if (ree_msg->length != cmd_len) {
         ZF_LOGE("Invalid Message size");
-        msg_err = TEE_INVALID_MSG_SIZE;
-        err = -EINVAL;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
     *reply_msg = malloc(cmd_len);
     if (!*reply_msg) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
     memset(*reply_msg, 0x0, cmd_len);
@@ -564,7 +551,7 @@ static int ree_tee_puf_req(struct ree_tee_hdr *ree_msg,
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -579,7 +566,7 @@ err_out:
     free(*reply_msg);
     *reply_msg = NULL;
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -594,7 +581,6 @@ static int ree_tee_nvm_param_req(struct ree_tee_hdr *ree_msg,
 {
     int err = -1;
     int32_t reply_type = REE_TEE_NVM_PARAM_RESP;
-    int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_nvm_param_cmd);
 
     seL4_Word sel4_req = IPC_CMD_SYS_CTL_NVM_PARAM_REQ;
@@ -607,15 +593,13 @@ static int ree_tee_nvm_param_req(struct ree_tee_hdr *ree_msg,
 
     if (ree_msg->length != cmd_len) {
         ZF_LOGE("Invalid Message size");
-        msg_err = TEE_INVALID_MSG_SIZE;
-        err = -EINVAL;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
     *reply_msg = malloc(cmd_len);
     if (!*reply_msg) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
     memset(*reply_msg, 0x0, cmd_len);
@@ -633,7 +617,7 @@ static int ree_tee_nvm_param_req(struct ree_tee_hdr *ree_msg,
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -648,7 +632,7 @@ err_out:
     free(*reply_msg);
     *reply_msg = NULL;
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -663,7 +647,6 @@ static int ree_tee_sign_req(struct ree_tee_hdr *ree_msg,
 {
     int err = -1;
     int32_t reply_type = REE_TEE_SIGN_RESP;
-    int msg_err = TEE_NOK;
     size_t cmd_len = sizeof(struct ree_tee_sign_cmd);
 
     seL4_Word sel4_req = IPC_CMD_SYS_CTL_SIGN_REQ;
@@ -677,15 +660,13 @@ static int ree_tee_sign_req(struct ree_tee_hdr *ree_msg,
 
     if (ree_msg->length != cmd_len) {
         ZF_LOGE("Invalid Message size");
-        msg_err = TEE_INVALID_MSG_SIZE;
-        err = -EINVAL;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
     *reply_msg = malloc(cmd_len);
     if (!*reply_msg) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
     memset(*reply_msg, 0x0, cmd_len);
@@ -706,7 +687,7 @@ static int ree_tee_sign_req(struct ree_tee_hdr *ree_msg,
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -721,7 +702,7 @@ err_out:
     free(*reply_msg);
     *reply_msg = NULL;
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -737,7 +718,6 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
     int err = -1;
     int32_t reply_type = REE_TEE_GEN_KEY_RESP;
     uint32_t reply_len = 0;
-    int msg_err = TEE_NOK;
 
     seL4_Word sel4_req = IPC_CMD_KEY_CREATE_REQ;
     struct ipc_msg_key_create_resp sel4_resp = { 0 };
@@ -754,8 +734,7 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
 
     if (ree_msg->length != sizeof(struct ree_tee_key_req_cmd)) {
         ZF_LOGE("Invalid Message size");
-        msg_err = TEE_INVALID_MSG_SIZE;
-        err = -EINVAL;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
@@ -773,7 +752,7 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -785,8 +764,7 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
 
     resp = malloc(reply_len);
     if (!resp) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
     memset(resp, 0x0, reply_len);
@@ -806,7 +784,7 @@ static int ree_tee_gen_key_req(struct ree_tee_hdr *ree_msg,
 err_out:
     free(resp);
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -822,7 +800,6 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     int err = -1;
     int32_t reply_type = REE_TEE_EXT_PUBKEY_RESP;
     uint32_t reply_len = 0;
-    int msg_err = TEE_NOK;
 
     struct ipc_msg_pubkey_export_req sel4_req = { 0 };
     struct ipc_msg_pubkey_export_resp sel4_resp = { 0 };
@@ -837,9 +814,6 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     uint32_t key_blob_size = cmd->hdr.length
                              - sizeof(struct ree_tee_hdr);
 
-
-
-
     struct ree_tee_key_info *key_info_ptr = NULL;
     uint8_t *pubkey_ptr = NULL;
 
@@ -847,8 +821,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
 
     if (ree_msg->length < sizeof(struct ree_tee_pub_key_req_cmd)) {
         ZF_LOGE("Invalid Message size");
-        msg_err = TEE_INVALID_MSG_SIZE;
-        err = -EINVAL;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
@@ -873,7 +846,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
 
     if (err) {
         ZF_LOGE("ERROR ipc_msg_call: %d", err);
-        msg_err = TEE_IPC_CMD_ERR;
+        err = TEE_IPC_CMD_ERR;
         goto err_out;
     }
 
@@ -888,8 +861,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
 
     resp = malloc(reply_len);
     if (!resp) {
-        err = -ENOMEM;
-        msg_err = TEE_OUT_OF_MEMORY;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
     memset(resp, 0x0, reply_len);
@@ -909,7 +881,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
 err_out:
     free(resp);
 
-    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
 
     return err;
 }
@@ -1025,9 +997,10 @@ static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
     /* Unknown message */
     if (!msg_fn) {
         ZF_LOGE("ERROR unknown msg: %d", ree_msg->msg_type);
-        SET_REE_HDR(reply_err, ree_msg->msg_type, TEE_UNKNOWN_MSG, REE_HDR_LEN);
+        err = TEE_UNKNOWN_MSG;
 
-        err = -ENXIO;
+        /* Use received unknown msg type in response */
+        SET_REE_HDR(reply_err, ree_msg->msg_type, err, REE_HDR_LEN);
     }
 
     return err;
@@ -1049,8 +1022,13 @@ static int wait_ree_rpmsg_msg()
         /* function allocates memory for msg */
         err = rpmsg_wait_ree_msg(&msg, &msg_len);
         if (err) {
-            ZF_LOGF("ERROR rpmsg_wait_ree_msg: %d", err);
-            return err;
+            ZF_LOGE("ERROR rpmsg_wait_ree_msg: %d", err);
+
+            /* try to send error response, best effort only */
+            SET_REE_HDR(&err_msg, REE_TEE_STATUS_RESP, err, REE_HDR_LEN);
+            rpmsg_send_ree_msg((char *)&err_msg, err_msg.length);
+
+            continue;
         }
 
         /* function allocates memory for reply or returns err_msg */
@@ -1071,6 +1049,7 @@ static int wait_ree_rpmsg_msg()
 
         err = rpmsg_send_ree_msg((char *)send_msg, send_msg->length);
         if (err) {
+            /* These are more or less fatal errors, abort*/
             ZF_LOGF("ERROR rpmsg_send_ree_msg: %d", err);
             return err;
         }

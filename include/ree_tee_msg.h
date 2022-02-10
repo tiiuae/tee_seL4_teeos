@@ -51,6 +51,7 @@ enum tee_status {
     TEE_INVALID_MSG_SIZE,
     TEE_IPC_CMD_ERR,
     TEE_OUT_OF_MEMORY,
+    TEE_SYSTEM_ERR,
     TEE_OK = 1,
 };
 

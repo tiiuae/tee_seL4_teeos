@@ -283,9 +283,9 @@ int platform_wait_ihc(uint32_t *ihc_type)
     /* Ack the handler so interrupts can come in */
     err = seL4_IRQHandler_Ack(sel4_config->ihc_irq);
     if (err) {
-        ZF_LOGF("seL4_IRQHandler_Ack failed: %d", err);
+        ZF_LOGE("seL4_IRQHandler_Ack failed: %d", err);
         return RL_NOT_READY;
     }
 
-    return err;
+    return RL_SUCCESS;
 }

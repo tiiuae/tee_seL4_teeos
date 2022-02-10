@@ -244,7 +244,7 @@ static int rpmsg_next_msg(struct rpmsg_comm_stack *handle, char **recv_cmd, uint
     if (vring_len < sizeof(struct ree_tee_hdr) ||
         vring_len > hdr->length) {
         ZF_LOGE("ERROR invalid length: %d", vring_len);
-        err = RL_ERR_BUFF_SIZE;
+        err = TEE_INVALID_MSG_SIZE;
         goto err_out;
     }
 
@@ -256,7 +256,7 @@ static int rpmsg_next_msg(struct rpmsg_comm_stack *handle, char **recv_cmd, uint
     msg_buf = env_allocate_memory(msg_len);
     if (!msg_buf) {
         ZF_LOGE("ERROR: msg_buf out of memory");
-        err = RL_ERR_NO_MEM;
+        err = TEE_OUT_OF_MEMORY;
         goto err_out;
     }
 
@@ -275,7 +275,7 @@ static int rpmsg_next_msg(struct rpmsg_comm_stack *handle, char **recv_cmd, uint
         /* Exactly msg size required, no support for concatenated msgs. */
         if (recv_total + vring_len > msg_len) {
             ZF_LOGE("ERROR invalid cmd size: %d", recv_total + vring_len);
-            err = RL_ERR_BUFF_SIZE;
+            err = TEE_INVALID_MSG_SIZE;
             goto err_out;
         }
 
