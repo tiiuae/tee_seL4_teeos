@@ -21,6 +21,7 @@
 #include <tommath.h>
 #include "sys_sel4.h"
 
+#include <utils/zf_log.h>
 
 struct bignum  {
    int used;
@@ -121,7 +122,7 @@ int trace_ext_get_thread_id(void)
 
 void trace_ext_puts(const char *str)
 {
-	printf("%s\n", str);
+	_zf_log_write(ZF_LOG_INFO, _ZF_LOG_TAG, str);
 }
 
 void sys_return_cleanup(void)
