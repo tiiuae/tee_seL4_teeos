@@ -65,8 +65,8 @@ static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uin
     uint32_t e;
     size_t length;
 
-    uint8_t *tmp_pub;
-    uint8_t *tmp_prv;
+    uint8_t *tmp_pub = NULL;
+    uint8_t *tmp_prv = NULL;
 
     tmp_pub = malloc(KEY_BUF_SIZE);
     if(!tmp_pub)
