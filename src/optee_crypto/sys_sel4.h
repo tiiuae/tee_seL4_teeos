@@ -14,6 +14,7 @@
 #include <trace.h>
 #include <types_ext.h>
 
+struct utee_params;
 
 #define panic()    ZF_LOGF("panic %d  %s", __LINE__, __func__)
 
@@ -48,5 +49,18 @@ TEE_Result sys_set_prot(vaddr_t va, size_t num_bytes, uint32_t flags);
 TEE_Result sys_remap(vaddr_t old_va, vaddr_t *new_va, size_t num_bytes,
 		     size_t pad_begin, size_t pad_end);
 TEE_Result sys_gen_random_num(void *buf, size_t blen);
+
+void init_sel4_mempool(void);
+
+TEE_Result entry_open_session_sel4(unsigned long session_id,
+			struct utee_params *up);
+
+TEE_Result entry_invoke_command2(unsigned long session_id,
+			struct utee_params *up, unsigned long cmd_id);
+
+TEE_Result entry_invoke_command_sel4(unsigned long session_id,
+			TEE_Param params[TEE_NUM_PARAMS], uint32_t param_types, unsigned long cmd_id);
+
+TEE_Result entry_close_session_sel4(unsigned long session_id);
 
 #endif /*SYS_SEL4_H*/
