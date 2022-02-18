@@ -46,6 +46,7 @@ extern void *app_shared_memory;
 #define  PK_PUBLIC      0x0000
    /* Refers to the private key */
 #define PK_PRIVATE      0x0001
+#define PK_STD          0x1000
 
 static const TEE_UUID uuid = {
                     0x5f8b97df, 0x2d0d, 0x4ad2,
@@ -108,7 +109,7 @@ static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uin
     }
     *privkey_l = length;
     length = KEY_BUF_SIZE;
-    r = crypto_acipher_extract_key(&key, tmp_pub , &length, PK_PUBLIC );
+    r = crypto_acipher_extract_key(&key, tmp_pub , &length, (PK_PUBLIC | PK_STD));
     if (r != TEE_SUCCESS) {
         ZF_LOGI("rsa public key extract failed %d\n", r);
     }
