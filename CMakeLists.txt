@@ -136,6 +136,7 @@ target_link_libraries(teeos_comm_app
 add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
     src/key_service.c
+    src/pkcs11_service.c
 )
 
 target_compile_options(sys_ctl_app
@@ -148,6 +149,7 @@ target_include_directories(sys_ctl_app
         "include"
         "${libtomcrypt_inc}"
         "${OPTEE_SRC_FOLDER}/core/include"
+        "src/optee_crypto"
 )
 
 target_link_libraries(sys_ctl_app

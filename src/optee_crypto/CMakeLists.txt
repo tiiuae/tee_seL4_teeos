@@ -20,6 +20,8 @@ ${OPTEE_SRC_FOLDER}/core/crypto/sm4-ctr.c
 ${OPTEE_SRC_FOLDER}/core/crypto/sm4-ecb.c
 rng_hw.c
 sys.c
+user_ta_entry.c
+utee.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/hash.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/hmac.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/cmac.c
@@ -44,14 +46,45 @@ ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_pbkdf2.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_hkdf.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_utl.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_fs_key_manager.c
+
+${OPTEE_SRC_FOLDER}/core/tee/tee_fs_rpc.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_svc.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_svc_storage.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_svc_cryp.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_obj.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_pobj.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_time_generic.c
+#${OPTEE_SRC_FOLDER}/core/tee/tee_ree_fs.c
+
 ${OPTEE_SRC_FOLDER}/core/kernel/huk_subkey.c
 ${OPTEE_SRC_FOLDER}/lib/libutils/ext/trace.c
 ${OPTEE_SRC_FOLDER}/lib/libutils/ext/snprintk.c
 ${OPTEE_SRC_FOLDER}/lib/libutils/ext/consttime_memcmp.c
-${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_objects.c
-${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_operations.c
-${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_property.c
 ${OPTEE_SRC_FOLDER}/lib/libutee/tee_api.c
+${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_panic.c
+${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_property.c
+${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_operations.c
+${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_objects.c
+${OPTEE_SRC_FOLDER}/lib/libutee/tee_system_pta.c
+${OPTEE_SRC_FOLDER}/lib/libutee/base64.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/attributes.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/entry.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/handle.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/object.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/persistent_token.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/pkcs11_attributes.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/pkcs11_helpers.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/pkcs11_token.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing_aes.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing_asymm.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing_digest.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing_ec.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing_rsa.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing_symm.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/sanitize_object.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/serializer.c
+${OPTEE_SRC_FOLDER}/ta/pkcs11/src/token_capabilities.c
 )
 
 
@@ -64,6 +97,8 @@ list(APPEND opteecrypt_include_dirs
     "${OPTEE_SRC_FOLDER}/lib/libutils/ext/include"
     "${OPTEE_SRC_FOLDER}/lib/libutee/include/"
     "${project_dir}/projects/sel4_teeos/include"
+    "${OPTEE_SRC_FOLDER}/ta/pkcs11/src"
+    "${OPTEE_SRC_FOLDER}/ta/pkcs11/include"
     "include"
 )
 
@@ -114,7 +149,14 @@ CFG_TA_BIGNUM_MAX_BITS=2048
 CFG_CRYPTOLIB_NAME_tomcrypt
 CFG_MSG_LONG_PREFIX_MASK=0x1a
 CFG_TEE_CORE_LOG_LEVEL=4
-TRACE_LEVEL=4
+TRACE_LEVEL=0
+CFG_PKCS11_TA_TOKEN_COUNT=3
+#CFG_REE_FS
+THREAD_RPC_MAX_NUM_PARAMS=4
+CFG_WITH_USER_TA
+CFG_TEE_TA_LOG_LEVEL=1
+CFG_PKCS11_TA_HEAP_SIZE=32768
+CFG_TEE_API_VERSION=GPD-1.1-dev
  )
 
  target_compile_options(opteecrypt
