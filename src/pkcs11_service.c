@@ -133,7 +133,6 @@ int sel4_init_pkcs11_session()
 int sel4_execute_pkcs11_command(TEE_Param params[TEE_NUM_PARAMS], uint32_t paramstype, uint32_t cmd)
 {
     int ret;
-    
 
     ret = entry_invoke_command_sel4(PKCS11_SESSION_ID, params, paramstype, cmd);
 
