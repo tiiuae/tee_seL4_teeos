@@ -103,6 +103,7 @@ list(APPEND libtomcrypt_inc
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
     src/comm_app.c
+    src/sel4_optee_serializer.c
 )
 
 target_compile_options(teeos_comm_app
@@ -127,6 +128,7 @@ target_link_libraries(teeos_comm_app
         sel4utils
         sel4platsupport
         sel4muslcsys
+        opteecrypt
     PRIVATE 
         teeos_Config
         rpmsg_lite
