@@ -96,6 +96,7 @@ list(APPEND opteecrypt_include_dirs
     "${OPTEE_SRC_FOLDER}/core/include/tee"
     "${OPTEE_SRC_FOLDER}/lib/libutils/ext/include"
     "${OPTEE_SRC_FOLDER}/lib/libutee/include/"
+    "${OPTEE_SRC_FOLDER}/ta/pkcs11/include"
     "${project_dir}/projects/sel4_teeos/include"
     "${OPTEE_SRC_FOLDER}/ta/pkcs11/src"
     "${OPTEE_SRC_FOLDER}/ta/pkcs11/include"

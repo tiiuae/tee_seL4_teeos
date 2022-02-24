@@ -7,6 +7,8 @@
 #ifndef _REE_TEE_MSG_H_
 #define _REE_TEE_MSG_H_
 
+#include <stdint.h>
+
 #define RNG_SIZE_IN_BYTES 32
 #define SNVM_PAGE_LENGTH  252
 #define USER_KEY_LENGTH   12
@@ -42,6 +44,8 @@ enum ree_tee_msg {
     REE_TEE_EXT_PUBKEY_RESP,
     REE_TEE_KEY_IMPORT_REQ,
     REE_TEE_KEY_IMPORT_RESP,
+    REE_TEE_OPTEE_OPEN_SESSION_REQ,
+    REE_TEE_OPTEE_OPEN_SESSION_RESP,
     REE_TEE_INVALID = -1,
 };
 
@@ -177,5 +181,12 @@ struct ree_tee_key_import_cmd
     struct key_data_blob data_in;
 };
 
+struct ree_tee_optee_cmd
+{
+    struct ree_tee_hdr hdr;
+    uint32_t ta_cmd;
+    uint32_t tee_result;
+    uint8_t params[0];
+};
 
 #endif /* _REE_TEE_MSG_H_ */

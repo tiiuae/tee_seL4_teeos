@@ -17,6 +17,7 @@
 #include <sel4runtime.h>
 #include <sel4platsupport/platsupport.h>
 #include <sel4utils/process.h>
+#include "utils/attribute.h"
 
 #include <teeos_common.h>
 #include <ree_tee_msg.h>
@@ -28,6 +29,8 @@
 #include "rpmsg_sel4.h"
 
 #include "sel4_crashlog.h"
+#include "sel4_optee_serializer.h"
+#include "pkcs11_ta.h"
 
 static seL4_CPtr ipc_root_ep = 0;
 static seL4_CPtr ipc_app_ep1 = 0;
@@ -72,6 +75,7 @@ DECL_MSG_FN(ree_tee_sign_req);
 DECL_MSG_FN(ree_tee_gen_key_req);
 DECL_MSG_FN(ree_tee_ext_pubkey_req);
 DECL_MSG_FN(ree_tee_key_import_req);
+DECL_MSG_FN(ree_tee_optee_open_session_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -87,7 +91,7 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_GEN_KEY_REQ, (uintptr_t)ree_tee_gen_key_req},
     {REE_TEE_EXT_PUBKEY_REQ, (uintptr_t)ree_tee_ext_pubkey_req},
     {REE_TEE_KEY_IMPORT_REQ, (uintptr_t)ree_tee_key_import_req},
-
+    {REE_TEE_OPTEE_OPEN_SESSION_REQ, (uintptr_t)ree_tee_optee_open_session_req},
 };
 
 static int setup_comm_ch(void)
@@ -964,7 +968,103 @@ err_out:
     return err;
 }
 
+static TEE_Result
+REMOVE_FROM_THIS_FILE_optee_open_session(uint32_t UNUSED param_types,
+                                         TEE_Param UNUSED param[4])
+{
+    return TEE_SUCCESS;
+}
 
+/* ree_tee_msg_fn:
+ *     For succesfull operation function allocates memory for reply_msg.
+ *     Otherwise function sets err_msg and frees all allocated memory
+ */
+static int ree_tee_optee_open_session_req(struct ree_tee_hdr *ree_msg,
+                               struct ree_tee_hdr **reply_msg,
+                               struct ree_tee_hdr *reply_err)
+{
+    int err = -1;
+
+    uint32_t param_len = 0;
+    uint32_t ptypes = 0;
+
+    TEE_Param tee_param[TEE_NUM_PARAMS] = { 0 };
+    uint32_t optee_res = 0;
+
+    struct serialized_param *reply_param = NULL;
+
+    /* REE messages */
+    int32_t reply_type = REE_TEE_OPTEE_OPEN_SESSION_RESP;
+    uint32_t reply_len = 0;
+    int msg_err = TEE_NOK;
+    struct ree_tee_optee_cmd *req = (struct ree_tee_optee_cmd *)ree_msg;
+    struct ree_tee_optee_cmd *resp = NULL;
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    param_len = ree_msg->length - sizeof(struct ree_tee_optee_cmd);
+
+    if (param_len == 0) {
+        ZF_LOGE("Invalid params len");
+        msg_err = TEE_INVALID_MSG_SIZE;
+        err = -EINVAL;
+        goto err_out;
+    }
+
+    err = sel4_optee_deserialize((struct serialized_param *)req->params,
+                                    param_len,
+                                    &ptypes,
+                                    tee_param);
+    if (err) {
+        msg_err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    optee_res = REMOVE_FROM_THIS_FILE_optee_open_session(ptypes, tee_param);
+
+    param_len = 0;
+    err = sel4_optee_serialize(&reply_param, &param_len, ptypes, tee_param);
+    if (err) {
+        msg_err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    /* Allocate memory for resp msg */
+    reply_len = sizeof(struct ree_tee_optee_cmd) + param_len;
+
+    resp = malloc(reply_len);
+    if (!resp) {
+        ZF_LOGE("out of memory");
+        msg_err = TEE_OUT_OF_MEMORY;
+        err = -ENOMEM;
+        goto err_out;
+    }
+    memset(resp, 0x0, reply_len);
+
+    resp->ta_cmd = req->ta_cmd;
+    resp->tee_result = optee_res;
+    memcpy(resp->params, reply_param, param_len);
+
+    /* tee_params not needed anymore */
+    sel4_dealloc_memrefs(ptypes, tee_param);
+
+    SET_REE_HDR(&resp->hdr, reply_type, TEE_OK, reply_len);
+
+    ZF_LOGI("Message Length = %d", reply_len);
+
+    *reply_msg = (struct ree_tee_hdr *)resp;
+
+    return 0;
+
+err_out:
+    free(resp);
+
+    sel4_dealloc_memrefs(ptypes, tee_param);
+
+    SET_REE_HDR(reply_err, reply_type, msg_err, REE_HDR_LEN);
+
+    return err;
+}
 
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
                             struct ree_tee_hdr **reply_msg,
