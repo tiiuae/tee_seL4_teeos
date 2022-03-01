@@ -130,7 +130,8 @@ exit:
 
     return r;
 }
-//#ifdef TEE_DEMO
+
+#ifdef TEE_DEMO
 /*
  * +To create 32 byte long hash that can be used for signing
  * echo -n "password" | openssl dgst -sha256 -binary > hash.bin
@@ -361,9 +362,7 @@ exit:
     return err;
 }
 
-
-
-//#endif
+#endif /* TEE_DEMO */
 
 static struct ree_tee_key_data_storage* decrypt_key_data(uint8_t *key_data, uint32_t length, UNUSED uint8_t *guid )
 {

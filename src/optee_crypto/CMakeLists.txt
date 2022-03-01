@@ -47,7 +47,7 @@ ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_hkdf.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_cryp_utl.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_fs_key_manager.c
 
-${OPTEE_SRC_FOLDER}/core/tee/tee_fs_rpc.c
+# ${OPTEE_SRC_FOLDER}/core/tee/tee_fs_rpc.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_svc.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_svc_storage.c
 ${OPTEE_SRC_FOLDER}/core/tee/tee_svc_cryp.c
