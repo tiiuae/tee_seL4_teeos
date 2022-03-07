@@ -59,7 +59,7 @@ static uint8_t fek[FEK_SIZE];
 
 static  struct ree_tee_key_data_storage  *active_key;
 
-static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uint32_t *pubkey_l, uint32_t *privkey_l)
+static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, size_t *pubkey_l, size_t *privkey_l)
 {
     static struct rsa_keypair key = {0};
 
@@ -67,22 +67,6 @@ static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uin
     uint32_t e;
     size_t length;
 
-    uint8_t *tmp_pub = NULL;
-    uint8_t *tmp_prv = NULL;
-
-    tmp_pub = malloc(KEY_BUF_SIZE);
-    if(!tmp_pub)
-    {
-        r = -ENOMEM;
-        goto exit;
-    }
-    tmp_prv = malloc(KEY_BUF_SIZE);
-    if(!tmp_prv)
-    {
-        r = -ENOMEM;
-        goto exit;
-    }
-    ZF_LOGI("allocate keys, key size = %d bits", size);
     r = crypto_acipher_alloc_rsa_keypair(&key, size);
 
     if (r)
@@ -102,32 +86,21 @@ static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, uin
 
     length = KEY_BUF_SIZE;
 
-
-    ZF_LOGI("Extract keys");
-    r = crypto_acipher_extract_key(&key, tmp_prv, &length, PK_PRIVATE );
+    r = crypto_acipher_extract_key(&key, privkey, &length, PK_PRIVATE );
     if (r != TEE_SUCCESS) {
         ZF_LOGI("rsa private key extract failed %d\n", r);
     }
     *privkey_l = length;
     length = KEY_BUF_SIZE;
-    r = crypto_acipher_extract_key(&key, tmp_pub , &length, (PK_PUBLIC | PK_STD));
+    r = crypto_acipher_extract_key(&key, pubkey , &length, (PK_PUBLIC | PK_STD));
     if (r != TEE_SUCCESS) {
         ZF_LOGI("rsa public key extract failed %d\n", r);
     }
     *pubkey_l = length;
 
-    ZF_LOGI("public key = %u private key %u bytes, copy public key to byte array..", *pubkey_l , *privkey_l );
-    memcpy(pubkey, &tmp_pub[0], *pubkey_l );
-    privkey=&pubkey[*pubkey_l];
-    memcpy(privkey, &tmp_prv[0], *privkey_l);
-
-    ZF_LOGI("free keys");
     crypto_acipher_free_rsa_keypair(&key);
 
 exit:
-    free(tmp_pub);
-    free(tmp_prv);
-
     return r;
 }
 
@@ -449,6 +422,20 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             /* Force encryption */
             key_req->format = KEY_RSA_PLAINTEXT;
 #endif
+            uint8_t *privkey;
+            uint8_t *pubkey;
+            size_t privkey_length;
+            size_t pubkey_length;
+            privkey = malloc(KEY_BUF_SIZE);
+            if(!privkey) {
+                return -ENOMEM;
+            }
+            pubkey = malloc(KEY_BUF_SIZE);
+            if(!pubkey) {
+                return -ENOMEM;
+            }
+
+
             /* generate Guid from system controller*/
             err = generate_guid(RSA_GUID_INDEX, key_req->guid);
             if (err)
@@ -458,9 +445,25 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             /* Copy keyinfo fields from req */
             memcpy(&payload->key_info, key_req, sizeof(struct ree_tee_key_info));
 
-            err = generate_rsa_keypair(payload->key_info.key_nbits, &payload->keys[0], NULL, &payload->key_info.pubkey_length, &payload->key_info.privkey_length);
+
+            err = generate_rsa_keypair(payload->key_info.key_nbits,
+                                         pubkey,
+                                         privkey,
+                                         &pubkey_length,
+                                         &privkey_length);
             if (err)
                 return err;
+
+            /* Pack keys to the payload | public key | private key | */
+            memcpy(&payload->keys[0], pubkey, pubkey_length);
+            memcpy(&payload->keys[pubkey_length], privkey, privkey_length);
+
+            payload->key_info.privkey_length = (uint32_t)privkey_length;
+            payload->key_info.pubkey_length = (uint32_t)pubkey_length;
+
+            /* We can now free temporary buffers */
+            free(privkey);
+            free(pubkey);
 
             uint32_t keysize = payload->key_info.privkey_length
             + payload->key_info.pubkey_length;
