@@ -31,7 +31,7 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wcast-qual"
 
-
+/* We support only one session at time */
 static struct ts_session local_session;
 
 void _utee_return(unsigned long ret)
@@ -56,8 +56,7 @@ TEE_Result _utee_get_property(unsigned long prop_set, unsigned long index,
                   void *name, uint32_t *name_len, void *buf,
                   uint32_t *blen, uint32_t *prop_type)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_get_property(prop_set, index,name, name_len, buf, blen, prop_type);
 }
 
 TEE_Result _utee_get_property_name_to_index(unsigned long prop_set,
@@ -65,8 +64,7 @@ TEE_Result _utee_get_property_name_to_index(unsigned long prop_set,
                         unsigned long name_len,
                         uint32_t *index)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_get_property_name_to_index(prop_set, name, name_len, index);
 }
 
 /* sess has type TEE_TASessionHandle */
@@ -613,31 +611,31 @@ struct tee_ta_session *__noprof to_ta_session(struct ts_session *sess)
 
 void ts_push_current_session(struct ts_session *s)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    ZF_LOGI("Not propely implemented %s ", __func__);
     memcpy(&local_session, s , sizeof(struct ts_session));
 }
 
 struct ts_session *ts_pop_current_session(void)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    ZF_LOGI("Not propely implemented %s ", __func__);
     return &local_session;
 }
 
 struct ts_session *ts_get_calling_session(void)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    ZF_LOGI("Not properly implemented %s ", __func__);
     return &local_session;
     }
 
 struct ts_session *ts_get_current_session_may_fail(void)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    ZF_LOGI("Not properly implemented %s ", __func__);
     return &local_session;
 }
 
 struct ts_session *ts_get_current_session(void)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    ZF_LOGI("Not properly implemented %s ", __func__);
     return &local_session;
 }
 

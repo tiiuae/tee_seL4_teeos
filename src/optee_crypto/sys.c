@@ -155,6 +155,11 @@ struct bignum *crypto_bignum_allocate(size_t size_bits)
     if (!A)
         return NULL;
 
+    if (size_bits % sizeof(uint64_t))
+    {
+        ZF_LOGW("Unaligned bignumber allocation");
+    }
+
     err = mp_init((void*)A);
     if (err)
     {

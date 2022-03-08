@@ -22,7 +22,7 @@
 #include <sys_ctl_service.h>
 #include <ree_tee_msg.h>
 #include <key_service.h>
-
+#include <pkcs11_service.h>
 #include <utils/fence.h>
 #include <utils/zf_log.h>
 
@@ -572,8 +572,10 @@ int main(int argc, char **argv)
     ZF_LOGI("comm app resp (%ld) 0x%lx", msg_len, msg_data);
 
     /* Demo */
-    Device_Serial_Number_Print();
 
+
+    Device_Serial_Number_Print();
+    //test_pkcs11();
     handle_service_requests();
     return error;
 }
