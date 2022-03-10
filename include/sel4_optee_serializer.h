@@ -15,7 +15,7 @@ struct serialized_param {
     uint8_t value[0];
 };
 
-int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len, uint32_t ptypes, TEE_Param *tee_params);
+int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len, uint32_t ptypes, TEE_Param *tee_params, TEE_Param *ref_params);
 int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len, uint32_t *ptypes, TEE_Param *tee_params);
 void sel4_dealloc_memrefs(uint32_t ptypes, TEE_Param *tee_params);
 

@@ -28,7 +28,6 @@ void sel4_dealloc_memrefs(uint32_t ptypes, TEE_Param *tee_params)
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
         case TEE_PARAM_TYPE_MEMREF_INOUT:
-            ZF_LOGI("free: %p [%d]", tee_params[i].memref.buffer, tee_params[i].memref.size);
             free(tee_params[i].memref.buffer);
             tee_params[i].memref.buffer = NULL;
             tee_params[i].memref.size = 0;
@@ -39,16 +38,25 @@ void sel4_dealloc_memrefs(uint32_t ptypes, TEE_Param *tee_params)
     }
 }
 
-static int sel4_optee_deserialize_memref(struct serialized_param *ser, TEE_Param *param)
+static int sel4_optee_deserialize_memref(struct serialized_param *ser, TEE_Param *params)
 {
-    param->memref.buffer = malloc(ser->val_len);
-    if (!param->memref.buffer) {
+    params->memref.size = ser->val_len;
+
+    /* zero length buffer is legal */
+    if (params->memref.size == 0) {
+        params->memref.buffer = NULL;
+        return 0;
+    }
+
+    params->memref.buffer = malloc(params->memref.size);
+    if (!params->memref.buffer) {
         ZF_LOGE("out of memory");
         return -ENOMEM;
     }
 
-    param->memref.size = ser->val_len;
-    memcpy(param->memref.buffer, ser->value, ser->val_len);
+    memcpy(params->memref.buffer, ser->value, ser->val_len);
+
+    app_hexdump(ser->value, ser->val_len);
 
     return 0;
 }
@@ -73,9 +81,6 @@ int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len,
         err = -EINVAL;
         goto out;
     }
-
-    ZF_LOGI("param len: %d", ser_len);
-    app_hexdump(ser_param, ser_len);
 
     memset(tee_params, 0x0, sizeof(TEE_Param) * TEE_NUM_PARAMS);
 
@@ -102,7 +107,8 @@ int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len,
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
         case TEE_PARAM_TYPE_MEMREF_INOUT:
-            ZF_LOGI("TEE_PARAM_TYPE_MEMREF: %d", param->val_len);
+            ZF_LOGI("TEE_PARAM_TYPE_MEMREF [0x%x]: %d", param->param_type,
+                param->val_len);
             err = sel4_optee_deserialize_memref(param, &tee_params[i]);
             if (err) {
                 goto out;
@@ -117,8 +123,6 @@ int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len,
         /* Move pointer to the next param */
         param = (struct serialized_param *)(param->value + param->val_len);
     }
-
-    ZF_LOGI("param types: 0%x", *ptypes);
 
     err = 0;
 
@@ -156,23 +160,19 @@ static int sel4_optee_alloc_ser_buf(uint8_t **buf, uint32_t *buf_len,
         }
     }
 
-    *buf = malloc(len);
+    *buf = calloc(1, len);
     if (!*buf) {
         ZF_LOGE("out of memory");
         return -ENOMEM;
     }
 
-    memset(*buf, 0x0, len);
-
     *buf_len = len;
-
-    ZF_LOGI("buffer len: %d", len);
 
     return 0;
 }
 
 int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
-                         uint32_t ptypes, TEE_Param *tee_params)
+                         uint32_t ptypes, TEE_Param *tee_params, TEE_Param *ref_params)
 {
     int err = -1;
     uint32_t len = 0;
@@ -201,9 +201,23 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
         case TEE_PARAM_TYPE_MEMREF_INOUT:
-            ZF_LOGI("TEE_PARAM_TYPE_MEMREF: %d", tee_params[i].memref.size);
+            ZF_LOGI("TEE_PARAM_TYPE_MEMREF: %d / %d", tee_params[i].memref.size,
+                ref_params[i].memref.size);
+
+            /* If provided parameter buffer is too short TA might update
+             * parameter size value to indicate required buffer size. Use
+             * original buffer length from ref_param for correct copy len.
+             */
             param->val_len = tee_params[i].memref.size;
-            memcpy(param->value, tee_params[i].memref.buffer, param->val_len);
+
+            if (tee_params[i].memref.buffer) {
+                memcpy(param->value,
+                       tee_params[i].memref.buffer,
+                       MIN(tee_params[i].memref.size, ref_params[i].memref.size));
+
+                app_hexdump(tee_params[i].memref.buffer,
+                            MIN(tee_params[i].memref.size, ref_params[i].memref.size));
+            }
             break;
         default:
             ZF_LOGE("Uknown param type");
@@ -217,9 +231,6 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
 
     *ser_len = len;
     *ser_param = (struct serialized_param *)buf;
-
-    ZF_LOGI("param len: %d", len);
-    app_hexdump(buf, len);
 
     err = 0;
 out:

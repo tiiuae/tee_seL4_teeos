@@ -988,10 +988,11 @@ static int ree_tee_optee_open_session_req(struct ree_tee_hdr *ree_msg,
     int err = -1;
 
     uint32_t param_len = 0;
-    uint32_t ptypes = 0;
+    uint32_t ptypes = TEE_PARAM_TYPE_NONE;
 
     TEE_Param tee_param[TEE_NUM_PARAMS] = { 0 };
-    uint32_t optee_res = 0;
+    TEE_Param ref_param[TEE_NUM_PARAMS] = { 0 };
+    uint32_t ta_err = 0;
 
     struct serialized_param *reply_param = NULL;
 
@@ -1022,10 +1023,15 @@ static int ree_tee_optee_open_session_req(struct ree_tee_hdr *ree_msg,
         goto err_out;
     }
 
-    optee_res = REMOVE_FROM_THIS_FILE_optee_open_session(ptypes, tee_param);
+    /* Save buffer lengths before calling TA. TA might change the memref.size
+     * without changing the actual memory allocation.
+     */
+    memcpy(ref_param, tee_param, sizeof(tee_param));
+
+    ta_err = REMOVE_FROM_THIS_FILE_optee_open_session(ptypes, tee_param);
 
     param_len = 0;
-    err = sel4_optee_serialize(&reply_param, &param_len, ptypes, tee_param);
+    err = sel4_optee_serialize(&reply_param, &param_len, ptypes, tee_param, ref_param);
     if (err) {
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
@@ -1044,7 +1050,7 @@ static int ree_tee_optee_open_session_req(struct ree_tee_hdr *ree_msg,
     memset(resp, 0x0, reply_len);
 
     resp->ta_cmd = req->ta_cmd;
-    resp->tee_result = optee_res;
+    resp->ta_result = ta_err;
     memcpy(resp->params, reply_param, param_len);
 
     /* tee_params not needed anymore */
@@ -1099,10 +1105,11 @@ static int ree_tee_optee_invoke_cmd_req(struct ree_tee_hdr *ree_msg,
     int err = -1;
 
     uint32_t param_len = 0;
-    uint32_t ptypes = 0;
+    uint32_t ptypes = TEE_PARAM_TYPE_NONE;
 
     TEE_Param tee_param[TEE_NUM_PARAMS] = { 0 };
-    uint32_t optee_res = 0;
+    TEE_Param ref_param[TEE_NUM_PARAMS] = { 0 };
+    uint32_t ta_err = 0;
 
     struct serialized_param *reply_param = NULL;
 
@@ -1133,10 +1140,16 @@ static int ree_tee_optee_invoke_cmd_req(struct ree_tee_hdr *ree_msg,
         goto err_out;
     }
 
-    optee_res = REMOVE_FROM_THIS_FILE_handle_optee_invoke_cmd(req->ta_cmd, ptypes, tee_param);
+    /* Save buffer lengths before calling TA */
+    memcpy(ref_param, tee_param, sizeof(tee_param));
+
+    ta_err = REMOVE_FROM_THIS_FILE_handle_optee_invoke_cmd(req->ta_cmd, ptypes, tee_param);
+
+    ZF_LOGI("ta_err: 0x%x, ", ta_err);
 
     param_len = 0;
-    err = sel4_optee_serialize(&reply_param, &param_len, ptypes, tee_param);
+
+    err = sel4_optee_serialize(&reply_param, &param_len, ptypes, tee_param, ref_param);
     if (err) {
         msg_err = TEE_IPC_CMD_ERR;
         goto err_out;
@@ -1147,7 +1160,7 @@ static int ree_tee_optee_invoke_cmd_req(struct ree_tee_hdr *ree_msg,
 
     resp = malloc(reply_len);
     if (!resp) {
-        ZF_LOGE("ou tof memory");
+        ZF_LOGE("out of memory");
         msg_err = TEE_OUT_OF_MEMORY;
         err = -ENOMEM;
         goto err_out;
@@ -1155,7 +1168,7 @@ static int ree_tee_optee_invoke_cmd_req(struct ree_tee_hdr *ree_msg,
     memset(resp, 0x0, reply_len);
 
     resp->ta_cmd = req->ta_cmd;
-    resp->tee_result = optee_res;
+    resp->ta_result = ta_err;
     memcpy(resp->params, reply_param, param_len);
 
     /* tee_param not needed anymore */

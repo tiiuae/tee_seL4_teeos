@@ -188,7 +188,7 @@ struct ree_tee_optee_cmd
 {
     struct ree_tee_hdr hdr;
     uint32_t ta_cmd;
-    uint32_t tee_result;
+    uint32_t ta_result;
     uint8_t params[0];
 };
 
