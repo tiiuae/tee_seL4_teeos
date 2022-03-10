@@ -807,7 +807,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     int32_t reply_type = REE_TEE_EXT_PUBKEY_RESP;
     uint32_t reply_len = 0;
 
-    struct ipc_msg_pubkey_export_req sel4_req = { 0 };
+    struct ipc_msg_gen_payload sel4_req = { 0 };
     struct ipc_msg_pubkey_export_resp sel4_resp = { 0 };
 
     /* REE messages */
@@ -840,7 +840,7 @@ static int ree_tee_ext_pubkey_req(struct ree_tee_hdr *ree_msg,
     ZF_LOGI("Extract Public key..");
 
     sel4_req.cmd_id = IPC_CMD_KEY_PUBEXT_REQ;
-    sel4_req.key_blob_size = key_blob_size;
+    sel4_req.payload_size = key_blob_size;
 
 
     err = ipc_msg_call(ipc_app_ep1,
@@ -904,7 +904,7 @@ static int ree_tee_key_import_req(struct ree_tee_hdr *ree_msg,
     int32_t reply_type = REE_TEE_KEY_IMPORT_RESP;
     int msg_err = TEE_NOK;
 
-    struct ipc_msg_key_import_req sel4_req = { 0 };
+    struct ipc_msg_gen_payload sel4_req = { 0 };
     seL4_Word sel4_resp = 0;
 
     /* REE messages */
@@ -935,7 +935,7 @@ static int ree_tee_key_import_req(struct ree_tee_hdr *ree_msg,
     ZF_LOGI("Import key..");
 
     sel4_req.cmd_id = IPC_CMD_KEY_IMPORT_REQ;
-    sel4_req.key_blob_size = key_blob_size;
+    sel4_req.payload_size = key_blob_size;
 
 
     err = ipc_msg_call(ipc_app_ep1,

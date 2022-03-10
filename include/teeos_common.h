@@ -92,20 +92,15 @@ struct ipc_msg_key_create_resp {
     seL4_Word keyblob_offset;
 };
 
-struct ipc_msg_pubkey_export_req {
-    seL4_Word cmd_id;
-    seL4_Word key_blob_size;
-};
-
 struct ipc_msg_pubkey_export_resp {
     seL4_Word cmd_id;
     seL4_Word key_info_offset;
     seL4_Word pubkey_offset;
 };
 
-struct ipc_msg_key_import_req {
+struct ipc_msg_gen_payload {
     seL4_Word cmd_id;
-    seL4_Word key_blob_size;
+    seL4_Word payload_size;
 };
 
 #define SINGLE_WORD_MSG         1

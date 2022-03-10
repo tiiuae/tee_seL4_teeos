@@ -368,15 +368,15 @@ static void handle_service_requests(void)
             {
                 ZF_LOGI("Public key extraction request");
 
-                struct ipc_msg_pubkey_export_req *sel4_req =
-                    (struct ipc_msg_pubkey_export_req *)sel4_ipc_recv.buf;
+                struct ipc_msg_gen_payload *sel4_req =
+                    (struct ipc_msg_gen_payload *)sel4_ipc_recv.buf;
 
                 struct ipc_msg_pubkey_export_resp *sel4_resp =
                     (struct ipc_msg_pubkey_export_resp *)sel4_ipc_reply.buf;
 
 
                 struct key_data_blob *key_data_ptr = (struct key_data_blob *)app_shared_memory;
-                uint32_t key_data_length = sel4_req->key_blob_size;
+                uint32_t key_data_length = sel4_req->payload_size;
 
                 struct ree_tee_key_info *keyinfo_ptr = (struct ree_tee_key_info *)((uint8_t*)key_data_ptr + key_data_length);
                 uintptr_t keyinfo_off = (uintptr_t)keyinfo_ptr - (uintptr_t)app_shared_memory;
