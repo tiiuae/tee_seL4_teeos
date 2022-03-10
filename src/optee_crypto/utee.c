@@ -64,7 +64,7 @@ TEE_Result _utee_get_property_name_to_index(unsigned long prop_set,
                         unsigned long name_len,
                         uint32_t *index)
 {
-    return syscall_get_property_name_to_index(prop_set, name, name_len, index);
+    return syscall_get_property_name_to_index(prop_set, (void*)name, name_len, index);
 }
 
 /* sess has type TEE_TASessionHandle */
