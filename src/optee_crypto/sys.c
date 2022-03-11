@@ -30,6 +30,9 @@
 
 #include <utils/fence.h>
 #include <utils/zf_log.h>
+#include <tomcrypt.h>
+
+prng_state sel4_prng;
 
 struct thread_param;
 
@@ -146,6 +149,13 @@ void sys_return_cleanup(void)
     while (true)
         ;
 }
+
+int init_fortuna_rng(void)
+{
+    int wprng = find_prng("fortuna");
+    return rng_make_prng(256, wprng, &sel4_prng, NULL);
+}
+
 
 struct bignum *crypto_bignum_allocate(size_t size_bits)
 {

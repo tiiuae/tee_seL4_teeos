@@ -34,6 +34,7 @@
 
 #include <crypto/crypto.h>
 #include <tee/tee_fs_key_manager.h>
+#include <sys_sel4.h>
 
 extern seL4_CPtr ipc_root_ep;
 extern seL4_CPtr ipc_app_ep1;
@@ -392,6 +393,12 @@ int teeos_init_crypto(void)
     if (err)
     {
         ZF_LOGI("Crypto init failed");
+    }
+
+    err = init_fortuna_rng();
+    if (err)
+    {
+        ZF_LOGI("Fortuna RNG initializtion failed = %d", err);
     }
 
     err = tee_fs_init_key_manager();
