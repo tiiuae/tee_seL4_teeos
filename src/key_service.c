@@ -40,7 +40,10 @@ extern seL4_CPtr ipc_root_ep;
 extern seL4_CPtr ipc_app_ep1;
 extern void *app_shared_memory;
 
-#define RSA_GUID_INDEX  0
+#define RSA_GUID_INDEX      0
+#define ECC_GUID_INDEX      1
+#define X25519_GUID_INDEX   2
+
 #define KEY_BUF_SIZE    2048
 #define FEK_SIZE        16u
 
@@ -59,6 +62,42 @@ static uint8_t fek[FEK_SIZE];
 
 
 static  struct ree_tee_key_data_storage  *active_key;
+
+static int generate_ecc_keypair(int size,
+                                 uint32_t keytype,
+                                 uint8_t *pubkey,
+                                 uint8_t *privkey,
+                                 size_t *pubkey_l,  /* length fields are in/out, buffer size as input */
+                                 size_t *privkey_l)
+{
+
+    int ret;
+    static struct ecc_keypair key = {0};
+
+    ret = crypto_acipher_alloc_ecc_keypair(&key, keytype, size);
+    if (ret) {
+        ZF_LOGI("Key allocation failed %d", ret);
+        return ret;
+    }
+
+    ret = crypto_acipher_gen_ecc_key(&key, size);
+    if (ret) {
+        ZF_LOGI("Key generation failed %d", ret);
+        goto exit;
+    }
+
+    ret = ecc_export_keys(&key, privkey, privkey_l, pubkey, pubkey_l);
+    if (ret)
+    {
+        ZF_LOGI("export failed %d\n", ret);
+    }
+
+exit:
+    ecc_free_keypair(&key);
+    return ret;
+
+}
+
 
 static int generate_rsa_keypair(int size, uint8_t *pubkey, uint8_t *privkey, size_t *pubkey_l, size_t *privkey_l)
 {
@@ -418,7 +457,21 @@ int teeos_init_crypto(void)
 int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_storage *payload, uint32_t max_size)
 {
     int err = -1;
-    ZF_LOGI("Generate keypair file, format = %d", key_req->format);
+    uint8_t *privkey = NULL;
+    uint8_t *pubkey = NULL;
+    static size_t privkey_length;
+    static size_t pubkey_length;
+
+    privkey = malloc(KEY_BUF_SIZE);
+    if(!privkey) {
+        return -ENOMEM;
+    }
+    pubkey = malloc(KEY_BUF_SIZE);
+    if(!pubkey) {
+        free(privkey);
+        return -ENOMEM;
+    }
+
     switch (key_req->format)
     {
         case KEY_RSA_CIPHERED:
@@ -429,102 +482,123 @@ int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_
             /* Force encryption */
             key_req->format = KEY_RSA_PLAINTEXT;
 #endif
-            uint8_t *privkey;
-            uint8_t *pubkey;
-            size_t privkey_length;
-            size_t pubkey_length;
-            privkey = malloc(KEY_BUF_SIZE);
-            if(!privkey) {
-                return -ENOMEM;
-            }
-            pubkey = malloc(KEY_BUF_SIZE);
-            if(!pubkey) {
-                return -ENOMEM;
-            }
-
-
             /* generate Guid from system controller*/
             err = generate_guid(RSA_GUID_INDEX, key_req->guid);
             if (err)
-                return err;
+                goto exit;
 
-            memset(&payload->keys[0], 0, 4096);
-            /* Copy keyinfo fields from req */
-            memcpy(&payload->key_info, key_req, sizeof(struct ree_tee_key_info));
-
-
-            err = generate_rsa_keypair(payload->key_info.key_nbits,
+            err = generate_rsa_keypair(key_req->key_nbits,
                                          pubkey,
                                          privkey,
                                          &pubkey_length,
                                          &privkey_length);
             if (err)
-                return err;
+                goto exit;
 
-            /* Pack keys to the payload | public key | private key | */
-            memcpy(&payload->keys[0], pubkey, pubkey_length);
-            memcpy(&payload->keys[pubkey_length], privkey, privkey_length);
 
-            payload->key_info.privkey_length = (uint32_t)privkey_length;
-            payload->key_info.pubkey_length = (uint32_t)pubkey_length;
-
-            /* We can now free temporary buffers */
-            free(privkey);
-            free(pubkey);
-
-            uint32_t keysize = payload->key_info.privkey_length
-            + payload->key_info.pubkey_length;
-
-            payload->key_info.storage_size = sizeof(struct ree_tee_key_data_storage)
-            + keysize;
-
-            /* Round up storage size */
-            payload->key_info.storage_size = payload->key_info.storage_size + (16 - payload->key_info.storage_size%16);
-
-            if (payload->key_info.storage_size > max_size) {
-                return -ENOMEM;
-            }
-
-            ZF_LOGI("pub key Length = %u...key pair name %s", payload->key_info.pubkey_length, key_req->name);
-            ZF_LOGI("Private key Length = %u...", payload->key_info.privkey_length);
-
-            /*Update length to request struct*/
-            key_req->pubkey_length = payload->key_info.pubkey_length;
-            key_req->privkey_length = payload->key_info.privkey_length;
-            key_req->storage_size = payload->key_info.storage_size;
-
-            if(key_req->format == KEY_RSA_CIPHERED)
-            {
-                uint8_t *tmp;
-                tmp = malloc(4096);
-                memset(tmp, 0,4096);
-                if (!tmp)
-                {
-                    err = -ENOMEM;
-                    break;
-                }
-                ZF_LOGI("Encrypt data, size = %u", key_req->storage_size);
-
-                err = tee_fs_crypt_block(&uuid, tmp,
-                        (uint8_t*)payload, key_req->storage_size,
-                        1, fek,
-                        TEE_MODE_ENCRYPT);
-
-                ZF_LOGI("Encrypt: tee_fs_crypt_block = %d\n", err);
-
-                /* Copy encrypted data */
-                memcpy((void*)payload, tmp, key_req->storage_size);
-                free(tmp);
-            }
 
             err = 0;
             break;
         }
+        case KEY_ECC_KEYPAIR:
+        case KEY_X25519_KEYPAIR:
+        {
+            pubkey_length = KEY_BUF_SIZE;
+            privkey_length = KEY_BUF_SIZE;
+
+            if (key_req->format == KEY_ECC_KEYPAIR) {
+                err = generate_guid(ECC_GUID_INDEX, key_req->guid);
+                if (err)
+                    goto exit;
+
+                uint32_t keytype = TEE_TYPE_ECDSA_KEYPAIR;
+                ZF_LOGI("Note: Keytype = TEE_TYPE_ECDSA %d", key_req->key_nbits);
+                err = generate_ecc_keypair(key_req->key_nbits,
+                                        keytype,
+                                        pubkey,
+                                        privkey,
+                                        &pubkey_length,
+                                        &privkey_length);
+            } else {
+                err = generate_guid(X25519_GUID_INDEX, key_req->guid);
+                if (err)
+                    goto exit;
+
+                bool x509_format = false;
+                if (key_req->key_nbits) {
+                    x509_format = true;
+                }
+                err = generate_x25519_keypair(pubkey,
+                                        privkey,
+                                        &pubkey_length,
+                                        &privkey_length,
+                                        x509_format);
+            }
+            if (err) {
+                ZF_LOGI("X25519 Key generation failed %d", err);
+                goto exit;
+            }
+
+        }
+        break;
         default:
             ZF_LOGI("Invalid KEY format %d", key_req->format);
             err = -EINVAL;
-            break;
     }
+
+    uint32_t storage_size = (uint32_t)(privkey_length + pubkey_length) + sizeof(struct ree_tee_key_data_storage);
+    /* Round up storage size */
+    storage_size = storage_size + (16 - storage_size%16);
+
+    if (storage_size > max_size) {
+        err = -ENOMEM;
+        goto exit;
+    }
+
+    /*Update length to request struct*/
+    key_req->pubkey_length = (uint32_t)pubkey_length;
+    key_req->privkey_length = (uint32_t)privkey_length;
+    key_req->storage_size = storage_size;
+
+    /* Pack keys to the payload | public key | private key | */
+    memcpy(&payload->keys[0], pubkey, pubkey_length);
+    memcpy(&payload->keys[pubkey_length], privkey, privkey_length);
+
+    /* Copy keyinfo fields from req */
+    memcpy(&payload->key_info, key_req, sizeof(struct ree_tee_key_info));
+
+    ZF_LOGI("pub key Length = %u...key pair name %s", payload->key_info.pubkey_length, key_req->name);
+    ZF_LOGI("Private key Length = %u...", payload->key_info.privkey_length);
+
+    if(key_req->format == KEY_RSA_CIPHERED)
+    {
+        uint8_t *tmp;
+        tmp = malloc(4096);
+        memset(tmp, 0,4096);
+        if (!tmp)
+        {
+            err = -ENOMEM;
+            goto exit;
+        }
+        ZF_LOGI("Encrypt data, size = %u", storage_size);
+
+        err = tee_fs_crypt_block(&uuid, tmp,
+                (uint8_t*)payload, storage_size,
+                1, fek,
+                TEE_MODE_ENCRYPT);
+
+        ZF_LOGI("Encrypt: tee_fs_crypt_block = %d\n", err);
+
+        /* Copy encrypted data */
+        memcpy((void*)payload, tmp, storage_size);
+        free(tmp);
+    }
+
+
+exit:
+    /* We can now free temporary buffers */
+    free(privkey);
+    free(pubkey);
     return err;
 }
 

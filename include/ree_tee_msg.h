@@ -64,6 +64,8 @@ enum key_format {
     KEY_UNKNOWN = -10,
     KEY_RSA_PLAINTEXT = 1,
     KEY_RSA_CIPHERED = 2,
+    KEY_ECC_KEYPAIR = 3,
+    KEY_X25519_KEYPAIR = 4,
 };
 
 struct ree_tee_hdr
