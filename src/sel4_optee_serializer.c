@@ -61,6 +61,21 @@ static int sel4_optee_deserialize_memref(struct serialized_param *ser, TEE_Param
     return 0;
 }
 
+static int sel4_optee_deserialize_value(struct serialized_param *ser, TEE_Param *params)
+{
+    if (ser->val_len != sizeof(params->value)) {
+        ZF_LOGE("Invalid param len: %d", ser->val_len);
+        return -EINVAL;
+    }
+
+    memcpy(&params->value, ser->value, ser->val_len);
+
+    ZF_LOGI("TEE_PARAM_TYPE_VALUE [0x%x]: a: 0x%x, b: 0x%x", ser->param_type,
+        params->value.a, params->value.b);
+
+    return 0;
+}
+
 int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len,
                            uint32_t *ptypes, TEE_Param *tee_params)
 {
@@ -102,7 +117,10 @@ int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len,
         case TEE_PARAM_TYPE_VALUE_INPUT:
         case TEE_PARAM_TYPE_VALUE_OUTPUT:
         case TEE_PARAM_TYPE_VALUE_INOUT:
-            ZF_LOGF("NOT SUPPORTED");
+            err = sel4_optee_deserialize_value(param, &tee_params[i]);
+            if (err) {
+                goto out;
+            }
             break;
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
@@ -147,7 +165,7 @@ static int sel4_optee_alloc_ser_buf(uint8_t **buf, uint32_t *buf_len,
         case TEE_PARAM_TYPE_VALUE_INPUT:
         case TEE_PARAM_TYPE_VALUE_OUTPUT:
         case TEE_PARAM_TYPE_VALUE_INOUT:
-            ZF_LOGF("NOT SUPPORTED");
+            len += sizeof(tee_params->value);
             break;
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
@@ -196,7 +214,12 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
         case TEE_PARAM_TYPE_VALUE_INPUT:
         case TEE_PARAM_TYPE_VALUE_OUTPUT:
         case TEE_PARAM_TYPE_VALUE_INOUT:
-            ZF_LOGF("STUB");
+            ZF_LOGI("TEE_PARAM_TYPE_VALUE [0x%x], a: 0x%x, b: 0x%x", param->param_type,
+                tee_params[i].value.a, tee_params[i].value.b);
+
+            param->val_len = sizeof(tee_params->value);
+            memcpy(param->value, &tee_params[i].value, param->val_len);
+            app_hexdump(param->value, param->val_len);
             break;
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
