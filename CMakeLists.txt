@@ -103,7 +103,6 @@ list(APPEND libtomcrypt_inc
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
     src/comm_app.c
-    src/sel4_optee_serializer.c
 )
 
 target_compile_options(teeos_comm_app
@@ -139,6 +138,7 @@ add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
     src/key_service.c
     src/pkcs11_service.c
+    src/sel4_optee_serializer.c
 )
 
 target_compile_options(sys_ctl_app

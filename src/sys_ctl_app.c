@@ -27,6 +27,7 @@
 #include <utils/zf_log.h>
 
 #include "sel4_crashlog.h"
+#include "sel4_optee_serializer.h"
 
 struct sel4_ipc_call_data {
     uint32_t len;
@@ -417,6 +418,37 @@ static void handle_service_requests(void)
                     ZF_LOGI("Key import failed %d ", err);
                     SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
+            }
+            break;
+            case IPC_CMD_OPTEE_REQ:
+            {
+                ZF_LOGI("OPTEE cmd");
+
+                struct ipc_msg_gen_payload *sel4_req =
+                    (struct ipc_msg_gen_payload *)sel4_ipc_recv.buf;
+
+                struct ipc_msg_gen_payload *sel4_resp =
+                    (struct ipc_msg_gen_payload *)sel4_ipc_reply.buf;
+
+                uint32_t resp_len = 0;
+
+                ZF_LOGI("sel4_req->payload_size: %ld", sel4_req->payload_size);
+
+                int err = sel4_optee_handle_cmd(app_shared_memory,
+                                                sel4_req->payload_size,
+                                                &resp_len,
+                                                shared_memory_size);
+
+                if (err) {
+                    ZF_LOGI("OPTEE cmd failed %d ", err);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
+                    break;
+                }
+
+                sel4_resp->cmd_id = IPC_CMD_OPTEE_RESP;
+                sel4_resp->payload_size = resp_len;
+
+                sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_gen_payload);
             }
             break;
             default:

@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "sel4_optee_serializer.h"
+#include "tee_api_types.h"
 
 
 int sel4_init_pkcs11_session(void);

@@ -44,10 +44,8 @@ enum ree_tee_msg {
     REE_TEE_EXT_PUBKEY_RESP,
     REE_TEE_KEY_IMPORT_REQ,
     REE_TEE_KEY_IMPORT_RESP,
-    REE_TEE_OPTEE_OPEN_SESSION_REQ,
-    REE_TEE_OPTEE_OPEN_SESSION_RESP,
-    REE_TEE_OPTEE_INVOKE_CMD_REQ,
-    REE_TEE_OPTEE_INVOKE_CMD_RESP,
+    REE_TEE_OPTEE_CMD_REQ,
+    REE_TEE_OPTEE_CMD_RESP,
 
     REE_TEE_INVALID = -1,
 };
@@ -184,12 +182,25 @@ struct ree_tee_key_import_cmd
     struct key_data_blob data_in;
 };
 
-struct ree_tee_optee_cmd
+enum optee_cmd_id {
+    OPTEE_INVALID_CMD = 0,
+    OPTEE_OPEN_SESSION,
+    OPTEE_INVOKE,
+};
+
+#define TA_CMD_NA   0xFFFFFFFF
+struct ree_tee_optee_payload
 {
-    struct ree_tee_hdr hdr;
+    uint32_t optee_cmd;
     uint32_t ta_cmd;
     uint32_t ta_result;
     uint8_t params[0];
+};
+
+struct ree_tee_optee_cmd
+{
+    struct ree_tee_hdr hdr;
+    struct ree_tee_optee_payload cmd;
 };
 
 #endif /* _REE_TEE_MSG_H_ */

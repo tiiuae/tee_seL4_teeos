@@ -17,6 +17,11 @@
 #include "teeos_common.h"
 #include "ree_tee_msg.h"
 
+#include "pkcs11_service.h"
+
+static TEE_Param ta_param[TEE_NUM_PARAMS] = { 0 };
+static TEE_Param ref_param[TEE_NUM_PARAMS] = { 0 };
+
 void sel4_dealloc_memrefs(uint32_t ptypes, TEE_Param *tee_params)
 {
     if (!tee_params) {
@@ -224,8 +229,8 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
         case TEE_PARAM_TYPE_MEMREF_INOUT:
-            ZF_LOGI("TEE_PARAM_TYPE_MEMREF: %d / %d", tee_params[i].memref.size,
-                ref_params[i].memref.size);
+            ZF_LOGI("TEE_PARAM_TYPE_MEMREF [0x%x]: %d / %d", param->param_type,
+                tee_params[i].memref.size, ref_params[i].memref.size);
 
             /* If provided parameter buffer is too short TA might update
              * parameter size value to indicate required buffer size. Use
@@ -260,6 +265,92 @@ out:
     if (err) {
         free(buf);
     }
+
+    return err;
+}
+
+
+int sel4_optee_handle_cmd(uint8_t *buf_in_out,
+                          uint32_t buf_in_len,
+                          uint32_t *buf_out_len,
+                          uint32_t buf_max_len)
+{
+    int err = -1;
+
+    struct ree_tee_optee_payload *cmd = (struct ree_tee_optee_payload*) buf_in_out;
+
+    uint32_t param_len = buf_in_len - sizeof(struct ree_tee_optee_payload);
+
+    uint32_t ptypes = TEE_PARAM_TYPE_NONE;
+
+    uint32_t ta_err = 0;
+
+    struct serialized_param *reply_param = NULL;
+
+    if (!buf_in_out || !buf_out_len) {
+        ZF_LOGE("Invalid params");
+        return -EINVAL;
+    }
+
+    memset(ta_param, 0x0, sizeof(ta_param));
+
+    err = sel4_optee_deserialize((struct serialized_param *)cmd->params,
+                                 param_len,
+                                 &ptypes,
+                                 ta_param);
+    if (err) {
+        goto err_out;
+    }
+
+    /* Save buffer lengths before calling TA. TA might change the memref.size
+     * without changing the actual memory allocation.
+     */
+    memcpy(ref_param, ta_param, sizeof(ta_param));
+
+    switch (cmd->optee_cmd) {
+    case OPTEE_OPEN_SESSION:
+        ZF_LOGI("OPTEE_OPEN_SESSION");
+        ta_err = sel4_init_pkcs11_session();
+        break;
+    case OPTEE_INVOKE:
+        ZF_LOGI("OPTEE_INVOKE");
+        ta_err = sel4_execute_pkcs11_command(ta_param, ptypes, cmd->ta_cmd);
+        break;
+    default:
+        ZF_LOGI("Unknown cmd: %d",cmd->optee_cmd);
+        err = -EINVAL;
+        goto err_out;
+    };
+
+    cmd->ta_result = ta_err;
+
+    ZF_LOGI("ta_err: %d", ta_err);
+
+    param_len = 0;
+    err = sel4_optee_serialize(&reply_param, &param_len, ptypes, ta_param, ref_param);
+    if (err) {
+        goto err_out;
+    }
+
+    if (param_len > (buf_max_len - sizeof(struct ree_tee_optee_payload))) {
+        ZF_LOGE("param buffer too long");
+        err = -ENOMEM;
+        goto err_out;
+    }
+
+    *buf_out_len = sizeof(struct ree_tee_optee_payload) + param_len;
+
+    memcpy(cmd->params, reply_param, param_len);
+
+    sel4_dealloc_memrefs(ptypes, ta_param);
+    free(reply_param);
+
+    return 0;
+
+err_out:
+
+    sel4_dealloc_memrefs(ptypes, ta_param);
+    free(reply_param);
 
     return err;
 }

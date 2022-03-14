@@ -19,4 +19,6 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
 int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len, uint32_t *ptypes, TEE_Param *tee_params);
 void sel4_dealloc_memrefs(uint32_t ptypes, TEE_Param *tee_params);
 
+int sel4_optee_handle_cmd(uint8_t *buf_in_out, uint32_t buf_in_len, uint32_t *buf_out_len, uint32_t buf_max_len);
+
 #endif /* _SEL4_OPTEE_SERIALIZER_H_ */
