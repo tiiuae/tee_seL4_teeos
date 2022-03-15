@@ -6,7 +6,6 @@
 
 /* Local log level */
 #define ZF_LOG_LEVEL ZF_LOG_INFO
-#define PLAINTEXT_DATA
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,8 +46,9 @@ void _utee_log(const void *buf, size_t len)
 /* This is not __noreturn because AArch32 stack unwinding fails otherwise */
 void _utee_panic(unsigned long code)
 {
-    ZF_LOGI("Not implemented %s  code %lu ", __func__, code);
-    while(1);
+    ZF_LOGI("\033[1;31m");
+    ZF_LOGI("PANIC Not implemented %s  code %lu ", __func__, code);
+    ZF_LOGI("\033[0m");
 }
 
 /* prop_set is TEE_PROPSET_xxx*/
@@ -144,19 +144,17 @@ TEE_Result _utee_set_ta_time(const TEE_Time *time)
 TEE_Result _utee_cryp_state_alloc(unsigned long algo, unsigned long op_mode,
                   unsigned long key1, unsigned long key2,
                   uint32_t *state)
- {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+{
+    return syscall_cryp_state_alloc(algo, op_mode, key1, key2, state);
+
 }
 TEE_Result _utee_cryp_state_copy(unsigned long dst, unsigned long src)
 {
-     ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_cryp_state_copy(dst, src);
 }
 TEE_Result _utee_cryp_state_free(unsigned long state)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_cryp_state_free(state);
 }
 
 /* iv and iv_len are ignored for some algorithms */
@@ -378,8 +376,7 @@ TEE_Result _utee_storage_start_enum(unsigned long obj_enum,
 TEE_Result _utee_storage_next_enum(unsigned long obj_enum, TEE_ObjectInfo *info,
                    void *obj_id, uint64_t *len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_next_enum(obj_enum, info, obj_id, len);
 }
 
 /* Data Stream Access Functions */
@@ -387,16 +384,15 @@ TEE_Result _utee_storage_next_enum(unsigned long obj_enum, TEE_ObjectInfo *info,
 TEE_Result _utee_storage_obj_read(unsigned long obj, void *data, size_t len,
                   uint64_t *count)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_obj_read(obj, data, len, count);
 }
 
 /* obj is of type TEE_ObjectHandle */
 TEE_Result _utee_storage_obj_write(unsigned long obj, const void *data,
                    size_t len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_obj_write(obj, (void*)data, len);
+
 }
 
 /* obj is of type TEE_ObjectHandle */
@@ -410,8 +406,7 @@ TEE_Result _utee_storage_obj_trunc(unsigned long obj, size_t len)
 TEE_Result _utee_storage_obj_seek(unsigned long obj, int32_t offset,
                   unsigned long whence)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_obj_seek(obj, offset, whence);
 }
 
 /* seServiceHandle is of type TEE_SEServiceHandle */
@@ -572,12 +567,12 @@ TEE_Result copy_to_user(void *uaddr, const void *kaddr, size_t len)
     return 0;
 }
 
-vaddr_t uref_to_vaddr(uint32_t uref)
+vaddr_t uref_to_vaddr(uint64_t uref)
 {
     return (vaddr_t)uref;
 }
 
-uint32_t kaddr_to_uref(void *kaddr)
+uint64_t kaddr_to_uref(void *kaddr)
 {
     return(vaddr_t)kaddr;
 }
@@ -595,9 +590,9 @@ TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len)
     return 0;
 }
 #endif
-TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
+TEE_Result copy_kaddr_to_uref(uint64_t *uref, void *kaddr)
 {
-    uint32_t ref = kaddr_to_uref(kaddr);
+    uint64_t ref = kaddr_to_uref(kaddr);
 
     return copy_to_user_private(uref, &ref, sizeof(ref));
 }
