@@ -6,7 +6,6 @@
 
 /* Local log level */
 #define ZF_LOG_LEVEL ZF_LOG_INFO
-#define PLAINTEXT_DATA
 
 #include <teeos/gen_config.h>
 
@@ -34,6 +33,7 @@
 
 #include <utee_syscalls.h>
 #include <user_ta_header.h>
+#include <kernel/user_ta.h>
 #include <pkcs11_ta.h>
 #include <pkcs11_token.h>
 #include <kernel/ts_manager.h>
@@ -203,14 +203,41 @@ static void slot_info_params(TEE_Param params[TEE_NUM_PARAMS], uint32_t *param_t
 
 
 
-
+struct ts_ctx *ctx;
 
 int sel4_init_pkcs11_session()
 {
     int ret;
-
+    ZF_LOGI("\n\n INIT PKCS 11 \n\n");
     init_sel4_mempool();
+
+    ctx = malloc(sizeof(struct ts_ctx));
+
+    struct tee_ta_session *ses = calloc(1, sizeof(struct tee_ta_session));
+    ses->cancel_mask = true;
+    ses->lock_thread = 2;
+    ses->ref_count = 1;
+
+    const TEE_UUID tuid = TA_UUID;
+
+    ret = tee_ta_init_user_ta_session(&tuid, ses);
+    if (ret)
+    {
+        ZF_LOGI("tee_ta_init_user_ta_session failed %d", ret);
+    }
+
+    ret = TA_CreateEntryPoint();
+    if (ret)
+    {
+        ZF_LOGI("TA_CreateEntryPoint failed %d", ret);
+    }
+
     ret = entry_open_session_sel4(PKCS11_SESSION_ID , &up);
+
+    if (ret)
+    {
+        ZF_LOGI("entry_open_session_sel4 %d", ret);
+    }
 
     return ret;
 
@@ -220,6 +247,8 @@ int sel4_execute_pkcs11_command(TEE_Param params[TEE_NUM_PARAMS], uint32_t param
 {
     int ret;
 
+
+    ZF_LOGI("\n \033[0;35m INVOKE COMMAND %u \033[0m", cmd);
     ret = entry_invoke_command_sel4(PKCS11_SESSION_ID, params, paramstype, cmd);
 
     return ret;

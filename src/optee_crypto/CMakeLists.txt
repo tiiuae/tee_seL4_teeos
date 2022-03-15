@@ -22,6 +22,7 @@ rng_hw.c
 sys.c
 user_ta_entry.c
 utee.c
+sel4_user_ta.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/hash.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/hmac.c
 ${OPTEE_SRC_FOLDER}/core/lib/libtomcrypt/cmac.c
