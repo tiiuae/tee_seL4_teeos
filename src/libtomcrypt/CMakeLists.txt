@@ -182,6 +182,7 @@ ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_free.c
 ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_sign_saltlen_get.c ${TOMCRYPT_SRC_FOLDER}/src/pk/rsa/rsa_verify_hash.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_export.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_pkcs8.c 
 ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_import_x509.c ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_make_key.c 
+${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_set_key.c
 ${TOMCRYPT_SRC_FOLDER}/src/pk/x25519/x25519_shared_secret.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/chacha20.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/fortuna.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/rc4.c 
 ${TOMCRYPT_SRC_FOLDER}/src/prngs/rng_get_bytes.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/rng_make_prng.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/sober128.c ${TOMCRYPT_SRC_FOLDER}/src/prngs/sprng.c 
 ${TOMCRYPT_SRC_FOLDER}/src/prngs/yarrow.c ${TOMCRYPT_SRC_FOLDER}/src/stream/chacha/chacha_crypt.c ${TOMCRYPT_SRC_FOLDER}/src/stream/chacha/chacha_done.c 
