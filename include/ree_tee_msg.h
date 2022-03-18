@@ -46,6 +46,8 @@ enum ree_tee_msg {
     REE_TEE_KEY_IMPORT_RESP,
     REE_TEE_OPTEE_CMD_REQ,
     REE_TEE_OPTEE_CMD_RESP,
+    REE_TEE_CONFIG_REQ,
+    REE_TEE_CONFIG_RESP,
 
     REE_TEE_INVALID = -1,
 };
@@ -83,6 +85,12 @@ struct ree_tee_status_req
 struct ree_tee_status_resp
 {
     struct ree_tee_hdr hdr;
+};
+
+struct ree_tee_config_cmd
+{
+    struct ree_tee_hdr hdr;
+    uint64_t debug_config;
 };
 
 struct ree_tee_rng_cmd

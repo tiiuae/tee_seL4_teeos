@@ -65,6 +65,7 @@ typedef int (*ree_tee_msg_fn)(struct ree_tee_hdr*, struct ree_tee_hdr**, struct 
                        struct ree_tee_hdr *reply_err)
 
 DECL_MSG_FN(ree_tee_status_req);
+DECL_MSG_FN(ree_tee_config_req);
 DECL_MSG_FN(ree_tee_rng_req);
 DECL_MSG_FN(ree_tee_snvm_read_req);
 DECL_MSG_FN(ree_tee_snvm_write_req);
@@ -81,6 +82,7 @@ DECL_MSG_FN(ree_tee_optee_cmd_req);
 
 static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_STATUS_REQ, (uintptr_t)ree_tee_status_req},
+    {REE_TEE_CONFIG_REQ, (uintptr_t)ree_tee_config_req},
     {REE_TEE_RNG_REQ, (uintptr_t)ree_tee_rng_req},
     {REE_TEE_SNVM_READ_REQ, (uintptr_t)ree_tee_snvm_read_req},
     {REE_TEE_SNVM_WRITE_REQ, (uintptr_t)ree_tee_snvm_write_req},
@@ -241,7 +243,67 @@ static int ree_tee_status_req(struct ree_tee_hdr *ree_msg __attribute__((unused)
 
     return 0;
 }
+/* ree_tee_msg_fn:
+ *     For succesfull operation function allocates memory for reply_msg.
+ *     Otherwise function sets err_msg and frees all allocated memory
+ */
+static int ree_tee_config_req(struct ree_tee_hdr *ree_msg,
+                           struct ree_tee_hdr **reply_msg,
+                           struct ree_tee_hdr *reply_err)
+{
+    int err = -1;
+    int32_t reply_type = REE_TEE_CONFIG_RESP;
+    size_t cmd_len = sizeof(struct ree_tee_config_cmd);
 
+    seL4_Word sel4_req = IPC_CMD_CONFIG_REQ;
+    seL4_Word sel4_resp = 0;
+
+    struct ree_tee_config_cmd *ipc = (struct ree_tee_config_cmd *)app_shared_memory;
+    struct ree_tee_config_cmd *req = (struct ree_tee_config_cmd *)ree_msg;
+    struct ree_tee_config_cmd *resp = NULL;
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    *reply_msg = malloc(cmd_len);
+    if (!*reply_msg) {
+        err = TEE_OUT_OF_MEMORY;
+        goto err_out;
+    }
+
+    resp = (struct ree_tee_config_cmd *)*reply_msg;
+
+    memcpy(ipc, req, cmd_len);
+
+    /*call to sys app*/
+    ZF_LOGI("Send msg to sys app...");
+
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &sel4_req,
+                       IPC_CMD_CONFIG_RESP,
+                       SINGLE_WORD_MSG,
+                       &sel4_resp);
+
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
+        err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    SET_REE_HDR(&resp->hdr, reply_type, TEE_OK, cmd_len);
+
+    resp->debug_config = ipc->debug_config;
+
+    return 0;
+
+err_out:
+    free(*reply_msg);
+    *reply_msg = NULL;
+
+    SET_REE_HDR(reply_err, reply_type, err, REE_HDR_LEN);
+
+    return err;
+}
 /* ree_tee_msg_fn:
  *     For succesfull operation function allocates memory for reply_msg.
  *     Otherwise function sets err_msg and frees all allocated memory

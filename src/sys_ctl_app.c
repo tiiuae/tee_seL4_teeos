@@ -50,6 +50,8 @@ static uint32_t shared_memory_size;
 
 static struct crashlog_ctx crashlog = { 0 };
 
+uint64_t sel4_debug_config;
+
 static int setup_crashlog(void)
 {
     int error = -1;
@@ -189,6 +191,20 @@ static void handle_service_requests(void)
 
         switch (sel4_ipc_recv.buf[0])
         {
+            case IPC_CMD_CONFIG_REQ:
+            {
+                struct ree_tee_config_cmd *cmd = (struct ree_tee_config_cmd*)app_shared_memory;
+                
+                /* Current config in reply */
+                if (cmd->debug_config & (1 << 63)) {
+                    cmd->debug_config = sel4_debug_config;
+                } else {
+                    sel4_debug_config = cmd->debug_config;
+                }
+                SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_CONFIG_RESP);
+                ZF_LOGI("\n DEBUG config received 0x%lx", cmd->debug_config);
+            }
+            break;
             case IPC_CMD_SYS_CTL_RNG_REQ:
             {
                 ZF_LOGI("RNG request");
