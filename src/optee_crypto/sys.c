@@ -336,6 +336,7 @@ void *mempool_alloc(struct mempool *pool, size_t size)
 {
     pool->data=(vaddr_t)malloc(size);
     pool->size=size;
+    return (void*)pool->data;
 }
 
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,

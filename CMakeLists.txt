@@ -66,6 +66,12 @@ set(ExtraCompileOptions
 add_library(sysctllib STATIC
     src/sys_ctl_services.c
 )
+
+target_compile_options(sysctllib
+    PRIVATE
+    ${ExtraCompileOptions}
+)
+
 target_include_directories(sysctllib
     PRIVATE
         "include"
@@ -105,6 +111,11 @@ add_library(littlefs STATIC
     ${LITTLEFS_SRC_FOLDER}/lfs.c
     ${LITTLEFS_SRC_FOLDER}/lfs_util.c
     ${LITTLEFS_SRC_FOLDER}/bd/lfs_rambd.c
+)
+
+target_compile_options(littlefs
+    PRIVATE
+        ${ExtraCompileOptions}
 )
 
 target_include_directories(littlefs

@@ -48,7 +48,7 @@ static TAILQ_HEAD(phdr_info_head, phdr_info) __phdr_info_head =
 
 
 
-static size_t _num_mod_init;
+/* static size_t _num_mod_init; */
 
 static void ta_header_save_params(uint32_t param_types,
 				  TEE_Param params[TEE_NUM_PARAMS])
@@ -75,7 +75,7 @@ static struct ta_session *ta_header_get_session(uint32_t session_id)
 static TEE_Result ta_header_add_session(uint32_t session_id)
 {
 	struct ta_session *itr = ta_header_get_session(session_id);
-	TEE_Result res;
+	/* TEE_Result res; */
 
 	if (itr)
 		return TEE_SUCCESS;
@@ -101,17 +101,17 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 static void ta_header_remove_session(uint32_t session_id)
 {
 	struct ta_session *itr;
-	bool keep_alive;
+	/* bool keep_alive; */
 
 	TAILQ_FOREACH(itr, &ta_sessions, link) {
 		if (itr->session_id == session_id) {
 			TAILQ_REMOVE(&ta_sessions, itr, link);
 			TEE_Free(itr);
 
-			keep_alive =
+			/* keep_alive =
 				(ta_head.flags & TA_FLAG_SINGLE_INSTANCE) &&
 				(ta_head.flags & TA_FLAG_INSTANCE_KEEP_ALIVE);
-			/*if (TAILQ_EMPTY(&ta_sessions) && !keep_alive)
+			if (TAILQ_EMPTY(&ta_sessions) && !keep_alive)
 				uninit_instance();*/
 
 			return;

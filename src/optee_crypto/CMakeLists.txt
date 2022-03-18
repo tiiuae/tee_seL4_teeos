@@ -161,10 +161,12 @@ CFG_PKCS11_TA_HEAP_SIZE=32768
 CFG_TEE_API_VERSION=GPD-1.1-dev
  )
 
- target_compile_options(opteecrypt
- PRIVATE
-     -O2
- )
+target_compile_options(opteecrypt
+    PRIVATE
+        -Wall
+        -Werror
+        -O2
+)
 
 target_link_libraries(opteecrypt
     PUBLIC
