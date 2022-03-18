@@ -86,6 +86,7 @@ ${OPTEE_SRC_FOLDER}/ta/pkcs11/src/processing_symm.c
 ${OPTEE_SRC_FOLDER}/ta/pkcs11/src/sanitize_object.c
 ${OPTEE_SRC_FOLDER}/ta/pkcs11/src/serializer.c
 ${OPTEE_SRC_FOLDER}/ta/pkcs11/src/token_capabilities.c
+${OPTEE_SRC_FOLDER}/core/tee/tee_ramdisk_fs.c
 )
 
 
@@ -159,7 +160,8 @@ CFG_WITH_USER_TA
 CFG_TEE_TA_LOG_LEVEL=1
 CFG_PKCS11_TA_HEAP_SIZE=32768
 CFG_TEE_API_VERSION=GPD-1.1-dev
- )
+CFG_RAMDISK_FS
+)
 
 target_compile_options(opteecrypt
     PRIVATE
@@ -181,6 +183,7 @@ target_link_libraries(opteecrypt
         tomcrypt
         tommath
         sysctllib
+        littlefs
 )
 
 export(PACKAGE ${PROJECT_NAME})

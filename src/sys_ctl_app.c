@@ -577,6 +577,11 @@ int main(int argc, char **argv)
         return error;
     }
 
+    error = teeos_init_optee_storage();
+    if (error) {
+        return error;
+    }
+
     ZF_LOGI("ipc_root_ep:    %p", (void *)ipc_root_ep);
 
     error = setup_app_ep();

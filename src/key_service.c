@@ -36,6 +36,8 @@
 #include <tee/tee_fs_key_manager.h>
 #include <sys_sel4.h>
 
+#include <tee/tee_fs.h>
+
 extern seL4_CPtr ipc_root_ep;
 extern seL4_CPtr ipc_app_ep1;
 extern void *app_shared_memory;
@@ -691,4 +693,16 @@ int import_key_blob(struct key_data_blob *key_data)
 void destroy_imported_key(void)
 {
     free(active_key);
+}
+
+int teeos_init_optee_storage(void)
+{
+    int ret = 0;
+
+    ret = ramdisk_fs_init();
+    if (ret) {
+        ZF_LOGE("ERROR: %d", ret);
+    }
+
+    return ret;
 }
