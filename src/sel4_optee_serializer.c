@@ -61,7 +61,8 @@ static int sel4_optee_deserialize_memref(struct serialized_param *ser, TEE_Param
 
     memcpy(params->memref.buffer, ser->value, ser->val_len);
 
-    app_hexdump(ser->value, ser->val_len);
+    if (ZF_LOG_OUTPUT_DEBUG)
+        app_hexdump(ser->value, ser->val_len);
 
     return 0;
 }
@@ -224,7 +225,10 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
 
             param->val_len = sizeof(tee_params->value);
             memcpy(param->value, &tee_params[i].value, param->val_len);
-            app_hexdump(param->value, param->val_len);
+
+            if (ZF_LOG_OUTPUT_DEBUG)
+                app_hexdump(param->value, param->val_len);
+
             break;
         case TEE_PARAM_TYPE_MEMREF_INPUT:
         case TEE_PARAM_TYPE_MEMREF_OUTPUT:
@@ -243,8 +247,9 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
                        tee_params[i].memref.buffer,
                        MIN(tee_params[i].memref.size, ref_params[i].memref.size));
 
-                app_hexdump(tee_params[i].memref.buffer,
-                            MIN(tee_params[i].memref.size, ref_params[i].memref.size));
+                if (ZF_LOG_OUTPUT_DEBUG)
+                    app_hexdump(tee_params[i].memref.buffer,
+                                MIN(tee_params[i].memref.size, ref_params[i].memref.size));
             }
             break;
         default:
@@ -324,7 +329,8 @@ int sel4_optee_handle_cmd(uint8_t *buf_in_out,
 
     cmd->ta_result = ta_err;
 
-    ZF_LOGI("ta_err: %d", ta_err);
+    if (ta_err)
+        ZF_LOGI("ta_err: %d", ta_err);
 
     param_len = 0;
     err = sel4_optee_serialize(&reply_param, &param_len, ptypes, ta_param, ref_param);

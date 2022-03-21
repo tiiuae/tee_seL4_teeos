@@ -50,7 +50,7 @@ struct mutex {
 };
 
 int trace_level = TRACE_LEVEL;
-const char trace_ext_prefix[]  = "SEL4";
+const char trace_ext_prefix[]  = "";
 
 void __panic(const char *file __maybe_unused, const int line __maybe_unused,
          const char *func __maybe_unused)
