@@ -196,6 +196,7 @@ enum optee_cmd_id {
     OPTEE_INVALID_CMD = 0,
     OPTEE_OPEN_SESSION,
     OPTEE_INVOKE,
+    OPTEE_CLOSE_SESSION,
 };
 
 #define TA_CMD_NA   0xFFFFFFFF

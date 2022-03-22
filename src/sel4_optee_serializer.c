@@ -321,6 +321,10 @@ int sel4_optee_handle_cmd(uint8_t *buf_in_out,
         ZF_LOGI("OPTEE_INVOKE");
         ta_err = sel4_execute_pkcs11_command(ta_param, ptypes, cmd->ta_cmd);
         break;
+    case OPTEE_CLOSE_SESSION:
+        ZF_LOGI("OPTEE_CLOSE");
+        ta_err = sel4_close_pkcs11_session();
+        break;
     default:
         ZF_LOGI("Unknown cmd: %d",cmd->optee_cmd);
         err = -EINVAL;
