@@ -27,7 +27,7 @@ struct ta_session {
 static TAILQ_HEAD(ta_sessions, ta_session) ta_sessions =
 		TAILQ_HEAD_INITIALIZER(ta_sessions);
 
-static bool init_done;
+static bool init_done = false;
 
 /* From user_ta_header.c, built within TA */
 extern uint8_t ta_heap[];
@@ -82,9 +82,9 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 
 	if (!init_done) {
 		init_done = true;
-		/*res = init_instance();
+		int res = TA_CreateEntryPoint();
 		if (res)
-			return res;*/
+			return res;
 	}
 
 	itr = TEE_Malloc(sizeof(struct ta_session),
@@ -101,18 +101,18 @@ static TEE_Result ta_header_add_session(uint32_t session_id)
 static void ta_header_remove_session(uint32_t session_id)
 {
 	struct ta_session *itr;
-	/* bool keep_alive; */
+	bool keep_alive;
 
 	TAILQ_FOREACH(itr, &ta_sessions, link) {
 		if (itr->session_id == session_id) {
 			TAILQ_REMOVE(&ta_sessions, itr, link);
 			TEE_Free(itr);
 
-			/* keep_alive =
+			 keep_alive =
 				(ta_head.flags & TA_FLAG_SINGLE_INSTANCE) &&
 				(ta_head.flags & TA_FLAG_INSTANCE_KEEP_ALIVE);
 			if (TAILQ_EMPTY(&ta_sessions) && !keep_alive)
-				uninit_instance();*/
+				TA_DestroyEntryPoint();
 
 			return;
 		}
@@ -191,14 +191,12 @@ TEE_Result entry_open_session_sel4(unsigned long session_id,
 	res = ta_header_add_session(session_id);
 	if (res != TEE_SUCCESS)
 	{
-		printf("ERR %s :%d \n", __func__, __LINE__);
 		return res;
 	}
 	session = ta_header_get_session(session_id);
 
 	if (!session)
 	{
-		printf("ERR %s :%d \n", __func__, __LINE__);
 		return TEE_ERROR_BAD_STATE;
 	}
 

@@ -226,14 +226,7 @@ int sel4_init_pkcs11_session()
         ZF_LOGI("tee_ta_init_user_ta_session failed %d", ret);
     }
 
-    ret = TA_CreateEntryPoint();
-    if (ret)
-    {
-        ZF_LOGI("TA_CreateEntryPoint failed %d", ret);
-    }
-
     ret = entry_open_session_sel4(PKCS11_SESSION_ID , &up);
-
     if (ret)
     {
         ZF_LOGI("entry_open_session_sel4 %d", ret);
