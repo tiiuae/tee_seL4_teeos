@@ -20,7 +20,7 @@
 #include "ree_tee_msg.h"
 
 /* Local log level */
-#define ZF_LOG_LEVEL ZF_LOG_INFO
+#define ZF_LOG_LEVEL    ZF_LOG_ERROR
 #include <utils/util.h>
 #include <utils/zf_log.h>
 

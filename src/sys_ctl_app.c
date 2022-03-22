@@ -13,18 +13,22 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include <sel4runtime.h>
-#include <sel4platsupport/platsupport.h>
-#include <sel4utils/process.h>
 
 #include <teeos_common.h>
 #include <sys_ctl_service.h>
 #include <ree_tee_msg.h>
 #include <key_service.h>
 #include <pkcs11_service.h>
-#include <utils/fence.h>
+
+/* Local log level */
+#define ZF_LOG_LEVEL    ZF_LOG_ERROR
+#include <utils/util.h>
 #include <utils/zf_log.h>
+
+#include <sel4utils/process.h>
 
 #include "sel4_crashlog.h"
 #include "sel4_optee_serializer.h"
@@ -448,15 +452,13 @@ static void handle_service_requests(void)
 
                 uint32_t resp_len = 0;
 
-                ZF_LOGI("sel4_req->payload_size: %ld", sel4_req->payload_size);
-
                 int err = sel4_optee_handle_cmd(app_shared_memory,
                                                 sel4_req->payload_size,
                                                 &resp_len,
                                                 shared_memory_size);
 
                 if (err) {
-                    ZF_LOGI("OPTEE cmd failed %d ", err);
+                    ZF_LOGE("OPTEE cmd failed %d ", err);
                     SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                     break;
                 }
@@ -468,7 +470,7 @@ static void handle_service_requests(void)
             }
             break;
             default:
-                ZF_LOGI("Unsupported message 0x%lx", sel4_ipc_recv.buf[0]);
+                ZF_LOGE("Unsupported message 0x%lx", sel4_ipc_recv.buf[0]);
                 SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_UNKNOWN);
                 break;
         }

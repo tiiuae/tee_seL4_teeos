@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <string.h>
 #include <platsupport/sync/spinlock.h>
-#include "utils/zf_log.h"
 #include "sel4_circ.h"
 
 #define CRASHLOG_PAYLOAD_PAGES  1
@@ -31,6 +30,10 @@ static struct crashlog_ctx *zf_crashlog_ctx;
 
 #ifndef ZF_LOG_EOL
 	#define ZF_LOG_EOL "\n"
+#endif
+
+#ifndef ZF_LOG_FATAL
+    #define ZF_LOG_FATAL   0xFFFF
 #endif
 
 /* originated from projects/util_libs/libutils/src/zf_log.c: output_callback() */

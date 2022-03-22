@@ -5,10 +5,6 @@
  * Copyright (c) 2022, Unikie
  */
 
-/* Local log level */
-#define ZF_LOG_LEVEL ZF_LOG_INFO
-#define PLAINTEXT_DATA
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -167,20 +163,20 @@ struct bignum *crypto_bignum_allocate(size_t size_bits)
 
     if (size_bits % sizeof(uint64_t))
     {
-        ZF_LOGW("Unaligned bignumber allocation");
+        DMSG("Unaligned bignumber allocation");
     }
 
     err = mp_init((void*)A);
     if (err)
     {
-        ZF_LOGE("mp_init failed %d\n", err);
+        EMSG("mp_init failed %d", err);
         free(A);
         return NULL;
     }
     err = mp_init_size((void*)A, size_bits/sizeof(uint64_t));
     if (err)
     {
-        ZF_LOGI("mp_init_size failed %d\n", err);
+        EMSG("mp_init_size failed %d", err);
         free(A);
         return NULL;
     }
@@ -196,7 +192,7 @@ TEE_Result crypto_bignum_bin2bn(const uint8_t *from, size_t fromsize,
         err = mp_init((void*)to);
         if (err)
         {
-            ZF_LOGI("mp_init failed %d\n", err);
+            EMSG("mp_init failed %d", err);
             return err;
         }
     }
@@ -211,7 +207,7 @@ void crypto_bignum_bn2bin(const struct bignum *from, uint8_t *to)
     size_t written;
     err = mp_to_ubin((const void*)from, to, SIZE_MAX, &written);
     if (err)
-        ZF_LOGI("%s failed : %d written = %lu\n",__func__, err,  written);
+        EMSG("%s failed : %d written = %lu",__func__, err,  written);
 }
 
 size_t crypto_bignum_num_bytes(struct bignum *a)
@@ -235,7 +231,7 @@ void crypto_bignum_copy(struct bignum *to, const struct bignum *from)
         err = mp_copy((void*)from, (void*)to);
     }
     if (err)
-        ZF_LOGI("bignum copy failed %d\n", err);
+        EMSG("bignum copy failed %d", err);
 }
 void crypto_bignum_free(struct bignum *a)
 {
@@ -251,7 +247,7 @@ TEE_Result tee_time_get_sys_time(TEE_Time *time)
 {
 
     uint64_t n;
-    ZF_LOGI("%s %d\n", __func__, __LINE__);
+    IMSG("%s %d", __func__, __LINE__);
 
     asm volatile(
         "rdtime %0"
@@ -266,20 +262,20 @@ TEE_Result tee_time_get_sys_time(TEE_Time *time)
 
 uint32_t tee_time_get_sys_time_protection_level(void)
 {
-    ZF_LOGI("Not implemented %s \n", __func__);
+    IMSG("Not implemented %s", __func__);
     return 2;
 }
 
 void tee_time_wait(uint32_t milliseconds_delay)
 {
-    ZF_LOGI("Not implemented %s \n", __func__);
+    IMSG("Not implemented %s", __func__);
 }
 
 TEE_Result tee_time_get_ree_time(TEE_Time *time)
 {
     time->millis = 300;
     time->seconds = 2000;
-    ZF_LOGI("Not implemented %s \n", __func__);
+    IMSG("Not implemented %s", __func__);
     return 2;
 }
 
@@ -291,12 +287,12 @@ void free_wipe(void *ptr)
 
 void mutex_unlock(struct mutex *m)
 {
-    ZF_LOGI("Not implemented %s \n", __func__);
+    DMSG("Not implemented %s", __func__);
     m = m;
 }
 void mutex_lock(struct mutex *m)
 {
-    ZF_LOGI("Not implemented %s \n", __func__);
+    DMSG("Not implemented %s", __func__);
     m = m;
 }
 
@@ -342,7 +338,7 @@ void *mempool_alloc(struct mempool *pool, size_t size)
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
             struct thread_param *params)
 {
-    ZF_LOGI("Not implemented %s \n", __func__);
+    IMSG("Not implemented %s", __func__);
     return 0;
 }
 

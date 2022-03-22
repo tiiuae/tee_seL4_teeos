@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-/* Local log level */
-#define ZF_LOG_LEVEL ZF_LOG_INFO
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,9 +20,7 @@
 #include <kernel/tee_time.h>
 #include "sys_sel4.h"
 
-#include <utils/fence.h>
 #include <utils/zf_log.h>
-
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
@@ -46,9 +42,7 @@ void _utee_log(const void *buf, size_t len)
 /* This is not __noreturn because AArch32 stack unwinding fails otherwise */
 void _utee_panic(unsigned long code)
 {
-    ZF_LOGI("\033[1;31m");
-    ZF_LOGI("PANIC Not implemented %s  code %lu ", __func__, code);
-    ZF_LOGI("\033[0m");
+    EMSG("PANIC Not implemented %s  code %lu ", __func__, code);
 }
 
 /* prop_set is TEE_PROPSET_xxx*/
@@ -73,14 +67,14 @@ TEE_Result _utee_open_ta_session(const TEE_UUID *dest,
                  struct utee_params *params, uint32_t *sess,
                  uint32_t *ret_orig)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* sess has type TEE_TASessionHandle */
 TEE_Result _utee_close_ta_session(unsigned long sess)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -91,35 +85,35 @@ TEE_Result _utee_invoke_ta_command(unsigned long sess,
                    struct utee_params *params,
                    uint32_t *ret_orig)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 TEE_Result _utee_check_access_rights(uint32_t flags, const void *buf,
                      size_t len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    IMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* cancel has type bool */
 TEE_Result _utee_get_cancellation_flag(uint32_t *cancel)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    IMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* old_mask has type bool */
 TEE_Result _utee_unmask_cancellation(uint32_t *old_mask)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    IMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* old_mask has type bool */
 TEE_Result _utee_mask_cancellation(uint32_t *old_mask)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    IMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -131,13 +125,13 @@ TEE_Result _utee_wait(unsigned long timeout)
 /* cat has type enum _utee_time_category */
 TEE_Result _utee_get_time(unsigned long cat, TEE_Time *time)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 TEE_Result _utee_set_ta_time(const TEE_Time *time)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -346,21 +340,21 @@ TEE_Result _utee_storage_obj_rename(unsigned long obj, const void *new_obj_id,
 /* obj_enum is of type TEE_ObjectEnumHandle */
 TEE_Result _utee_storage_alloc_enum(uint32_t *obj_enum)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
 TEE_Result _utee_storage_free_enum(unsigned long obj_enum)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
 TEE_Result _utee_storage_reset_enum(unsigned long obj_enum)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -368,7 +362,7 @@ TEE_Result _utee_storage_reset_enum(unsigned long obj_enum)
 TEE_Result _utee_storage_start_enum(unsigned long obj_enum,
                     unsigned long storage_id)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -412,14 +406,14 @@ TEE_Result _utee_storage_obj_seek(unsigned long obj, int32_t offset,
 /* seServiceHandle is of type TEE_SEServiceHandle */
 TEE_Result _utee_se_service_open(uint32_t *seServiceHandle)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* seServiceHandle is of type TEE_SEServiceHandle */
 TEE_Result _utee_se_service_close(unsigned long seServiceHandle)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -430,7 +424,7 @@ TEE_Result _utee_se_service_close(unsigned long seServiceHandle)
 TEE_Result _utee_se_service_get_readers(unsigned long seServiceHandle,
                     uint32_t *r, uint64_t *len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -440,7 +434,7 @@ TEE_Result _utee_se_service_get_readers(unsigned long seServiceHandle,
  */
 TEE_Result _utee_se_reader_get_prop(unsigned long r, uint32_t *p)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -448,7 +442,7 @@ TEE_Result _utee_se_reader_get_prop(unsigned long r, uint32_t *p)
 TEE_Result _utee_se_reader_get_name(unsigned long r, char *name,
                     uint64_t *name_len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -458,21 +452,21 @@ TEE_Result _utee_se_reader_get_name(unsigned long r, char *name,
  */
 TEE_Result _utee_se_reader_open_session(unsigned long r, uint32_t *s)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* r is of type TEE_SEReaderHandle */
 TEE_Result _utee_se_reader_close_sessions(unsigned long r)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* s is of type TEE_SESessionHandle */
 TEE_Result _utee_se_session_is_closed(unsigned long s)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -480,7 +474,7 @@ TEE_Result _utee_se_session_is_closed(unsigned long s)
 TEE_Result _utee_se_session_get_atr(unsigned long s, void *atr,
                     uint64_t *atr_len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -493,21 +487,21 @@ TEE_Result _utee_se_session_open_channel(unsigned long s,
                      const void *aid_buffer,
                      size_t aid_buffer_len, uint32_t *c)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* s is of type TEE_SESessionHandle */
 TEE_Result _utee_se_session_close(unsigned long s)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* c is of type TEE_SEChannelHandle */
 TEE_Result _utee_se_channel_select_next(unsigned long c)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -515,7 +509,7 @@ TEE_Result _utee_se_channel_select_next(unsigned long c)
 TEE_Result _utee_se_channel_get_select_resp(unsigned long c, void *resp,
                         uint64_t *resp_len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -523,27 +517,27 @@ TEE_Result _utee_se_channel_get_select_resp(unsigned long c, void *resp,
 TEE_Result _utee_se_channel_transmit(unsigned long c, void *cmd, size_t cmd_len,
                      void *resp, uint64_t *resp_len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* c is of type TEE_SEChannelHandle */
 TEE_Result _utee_se_channel_close(unsigned long c)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 /* op is of type enum _utee_cache_operation */
 TEE_Result _utee_cache_operation(void *va, size_t l, unsigned long op)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
 TEE_Result _utee_gprof_send(void *buf, size_t size, uint32_t *id)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    EMSG("Not implemented %s ", __func__);
     return 0;
 }
 
@@ -551,7 +545,7 @@ TEE_Result _utee_gprof_send(void *buf, size_t size, uint32_t *id)
 TEE_Result vm_check_access_rights(const struct user_mode_ctx *uctx,
                   uint32_t flags, uaddr_t uaddr, size_t len)
 {
-    ZF_LOGI("Not implemented %s ", __func__);
+    DMSG("Not implemented %s ", __func__);
     return TEE_SUCCESS;
 }
 
@@ -606,31 +600,31 @@ struct tee_ta_session *__noprof to_ta_session(struct ts_session *sess)
 
 void ts_push_current_session(struct ts_session *s)
 {
-    ZF_LOGI("Not propely implemented %s ", __func__);
+    DMSG("Not propely implemented %s ", __func__);
     memcpy(&local_session, s , sizeof(struct ts_session));
 }
 
 struct ts_session *ts_pop_current_session(void)
 {
-    ZF_LOGI("Not propely implemented %s ", __func__);
+    DMSG("Not propely implemented %s ", __func__);
     return &local_session;
 }
 
 struct ts_session *ts_get_calling_session(void)
 {
-    ZF_LOGI("Not properly implemented %s ", __func__);
+    DMSG("Not properly implemented %s ", __func__);
     return &local_session;
     }
 
 struct ts_session *ts_get_current_session_may_fail(void)
 {
-    ZF_LOGI("Not properly implemented %s ", __func__);
+    DMSG("Not properly implemented %s ", __func__);
     return &local_session;
 }
 
 struct ts_session *ts_get_current_session(void)
 {
-    ZF_LOGI("Not properly implemented %s ", __func__);
+    DMSG("Not properly implemented %s ", __func__);
     return &local_session;
 }
 

@@ -9,7 +9,7 @@
 #include <sel4runtime.h>
 
 /* Local log level */
-#define ZF_LOG_LEVEL ZF_LOG_INFO
+#define ZF_LOG_LEVEL    ZF_LOG_ERROR
 #include <utils/util.h>
 #include <utils/zf_log.h>
 
@@ -326,7 +326,7 @@ int sel4_optee_handle_cmd(uint8_t *buf_in_out,
         ta_err = sel4_close_pkcs11_session();
         break;
     default:
-        ZF_LOGI("Unknown cmd: %d",cmd->optee_cmd);
+        ZF_LOGE("Unknown cmd: %d",cmd->optee_cmd);
         err = -EINVAL;
         goto err_out;
     };
@@ -334,7 +334,7 @@ int sel4_optee_handle_cmd(uint8_t *buf_in_out,
     cmd->ta_result = ta_err;
 
     if (ta_err)
-        ZF_LOGI("ta_err: %d", ta_err);
+        ZF_LOGE("ta_err: %d", ta_err);
 
     param_len = 0;
     err = sel4_optee_serialize(&reply_param, &param_len, ptypes, ta_param, ref_param);

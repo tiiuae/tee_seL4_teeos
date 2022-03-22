@@ -58,6 +58,7 @@ ${OPTEE_SRC_FOLDER}/core/tee/tee_time_generic.c
 #${OPTEE_SRC_FOLDER}/core/tee/tee_ree_fs.c
 
 ${OPTEE_SRC_FOLDER}/core/kernel/huk_subkey.c
+${OPTEE_SRC_FOLDER}/core/kernel/tee_misc.c
 ${OPTEE_SRC_FOLDER}/lib/libutils/ext/trace.c
 ${OPTEE_SRC_FOLDER}/lib/libutils/ext/snprintk.c
 ${OPTEE_SRC_FOLDER}/lib/libutils/ext/consttime_memcmp.c
@@ -153,7 +154,9 @@ CFG_TA_BIGNUM_MAX_BITS=2048
 CFG_CRYPTOLIB_NAME_tomcrypt
 CFG_MSG_LONG_PREFIX_MASK=0x1f
 CFG_TEE_CORE_LOG_LEVEL=4
-TRACE_LEVEL=4
+TRACE_LEVEL=TRACE_INFO
+OPTEE_RAMDISK_TRACE_LEVEL=TRACE_ERROR
+TRACE_ERROR_HIGHLIGHT
 CFG_PKCS11_TA_TOKEN_COUNT=3
 #CFG_REE_FS
 THREAD_RPC_MAX_NUM_PARAMS=4

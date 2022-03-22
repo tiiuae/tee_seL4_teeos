@@ -13,18 +13,20 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include <sel4runtime.h>
-#include <sel4platsupport/platsupport.h>
-#include <sel4utils/process.h>
 #include "utils/attribute.h"
-
 #include <teeos_common.h>
 #include <ree_tee_msg.h>
 #include <key_service.h>
 
-#include <utils/fence.h>
+/* Local log level */
+#define ZF_LOG_LEVEL    ZF_LOG_ERROR
+#include <utils/util.h>
 #include <utils/zf_log.h>
+
+#include <sel4utils/process.h>
 
 #include "rpmsg_sel4.h"
 
