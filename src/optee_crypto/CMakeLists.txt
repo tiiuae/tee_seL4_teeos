@@ -68,6 +68,7 @@ ${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_operations.c
 ${OPTEE_SRC_FOLDER}/lib/libutee/tee_api_objects.c
 ${OPTEE_SRC_FOLDER}/lib/libutee/tee_system_pta.c
 ${OPTEE_SRC_FOLDER}/lib/libutee/base64.c
+${OPTEE_SRC_FOLDER}/lib/libutee/tee_uuid_from_str.c
 ${OPTEE_SRC_FOLDER}/ta/pkcs11/src/attributes.c
 ${OPTEE_SRC_FOLDER}/ta/pkcs11/src/entry.c
 ${OPTEE_SRC_FOLDER}/ta/pkcs11/src/handle.c
@@ -159,6 +160,8 @@ THREAD_RPC_MAX_NUM_PARAMS=4
 CFG_WITH_USER_TA
 CFG_TEE_TA_LOG_LEVEL=1
 CFG_PKCS11_TA_HEAP_SIZE=32768
+CFG_PKCS11_TA_AUTH_TEE_IDENTITY
+CFG_PKCS11_TA_ALLOW_DIGEST_KEY
 CFG_TEE_API_VERSION=GPD-1.1-dev
 CFG_RAMDISK_FS
 )
