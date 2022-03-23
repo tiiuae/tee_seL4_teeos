@@ -196,7 +196,7 @@ static void handle_service_requests(void)
                 struct ree_tee_config_cmd *cmd = (struct ree_tee_config_cmd*)app_shared_memory;
                 
                 /* Current config in reply */
-                if (cmd->debug_config & (1 << 63)) {
+                if (cmd->debug_config & (1UL << 63)) {
                     cmd->debug_config = sel4_debug_config;
                 } else {
                     sel4_debug_config = cmd->debug_config;
