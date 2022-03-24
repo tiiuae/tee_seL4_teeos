@@ -26,6 +26,8 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wcast-qual"
 
+#define UNREACHABLE()       __builtin_unreachable()
+
 /* We support only one session at time */
 static struct ts_session local_session;
 
@@ -584,11 +586,14 @@ TEE_Result copy_from_user_private(void *kaddr, const void *uaddr, size_t len)
     return 0;
 }
 #endif
-TEE_Result copy_kaddr_to_uref(uint64_t *uref, void *kaddr)
+TEE_Result copy_kaddr_to_uref(uint32_t *uref, void *kaddr)
 {
     uint64_t ref = kaddr_to_uref(kaddr);
+    if (ref > UINT32_MAX) {
+        ZF_LOGF("Kaddr pointer value too large %p", kaddr);
+    }
 
-    return copy_to_user_private(uref, &ref, sizeof(ref));
+    return copy_to_user_private(uref, &ref, sizeof(uint32_t));
 }
 
 /* Sessopm stuff */
