@@ -56,7 +56,7 @@ set(LibNanopb ON CACHE BOOL "" FORCE)
 sel4_projects_libs_import_libraries()
 
 set(ExtraCompileOptions
-#    -Werror # spinlock.h: warning: unused parameter
+    -Werror
     -Wall
     -Wextra
     -g

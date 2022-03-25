@@ -8,7 +8,7 @@
 
 #include <stdint.h>
 #include <string.h>
-#include <platsupport/sync/spinlock.h>
+#include "spinlock.h"
 #include "sel4_circ.h"
 
 #define CRASHLOG_PAYLOAD_PAGES  1

@@ -8,7 +8,7 @@
 
 #include <stdbool.h>
 #include <sel4runtime.h>
-#include <platsupport/sync/spinlock.h>
+#include "spinlock.h"
 
 /* sync_spinlock_lock() + seL4_Yield() */
 static inline int sync_spinlock_lock_yield(sync_spinlock_t *lock) {

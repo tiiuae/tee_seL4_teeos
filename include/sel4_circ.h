@@ -9,7 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include <sel4runtime.h>
-#include <platsupport/sync/spinlock.h>
+#include "spinlock.h"
 #include <utils/arith.h>
 #include <linux/circ_buf.h>
 

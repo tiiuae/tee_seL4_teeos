@@ -26,7 +26,7 @@
 #include <utils/fence.h>
 #include <utils/zf_log.h>
 
-#include <platsupport/sync/spinlock.h>
+#include "spinlock.h"
 #include <utils/arith.h>
 
 /* In polling mode only one request at time so commmand can be placed in zero offset */
