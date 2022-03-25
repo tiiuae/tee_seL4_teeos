@@ -143,6 +143,11 @@ target_include_directories(teeos_comm_app
         "${rpmsg_inc}"
 )
 
+target_link_options(teeos_comm_app
+    PRIVATE
+        -Xlinker -Map=teeos_comm_app.map
+)
+
 target_link_libraries(teeos_comm_app
     PUBLIC
         sel4_autoconf
@@ -179,6 +184,11 @@ target_include_directories(sys_ctl_app
         "${libtomcrypt_inc}"
         "${OPTEE_SRC_FOLDER}/core/include"
         "src/optee_crypto"
+)
+
+target_link_options(sys_ctl_app
+    PRIVATE
+        -Xlinker -Map=sys_ctl_app.map
 )
 
 target_link_libraries(sys_ctl_app
@@ -227,6 +237,11 @@ target_include_directories(teeos_root
     PRIVATE
         "include"
         "${rpmsg_inc}"
+)
+
+target_link_options(teeos_root
+    PRIVATE
+        -Xlinker -Map=teeos_root.map
 )
 
 target_link_libraries(teeos_root
