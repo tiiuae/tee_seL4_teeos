@@ -706,3 +706,7 @@ int teeos_init_optee_storage(void)
 
     return ret;
 }
+int teeos_reseed_fortuna_rng(void)
+{
+    return sys_reseed_fortuna_rng();
+}

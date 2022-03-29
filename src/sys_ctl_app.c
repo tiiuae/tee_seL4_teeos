@@ -55,6 +55,7 @@ static uint32_t shared_memory_size;
 static struct crashlog_ctx crashlog = { 0 };
 
 uint64_t sel4_debug_config;
+static int seed_counter;
 
 static int setup_crashlog(void)
 {
@@ -155,6 +156,7 @@ static void handle_service_requests(void)
     seL4_MessageInfo_t msg_info = {0};
     seL4_Word msg_len = 0;
     seL4_Word sender_badge = 0;
+    int ret;
 
     /* malloc size in bytes */
     seL4_Word *sel4_ipc_buf = malloc(seL4_MsgMaxLength * sizeof(seL4_Word) * 2);
@@ -176,6 +178,12 @@ static void handle_service_requests(void)
 
     while(1)
     {
+        seed_counter++;
+        /* Reseed rng periodically */
+        if (seed_counter % 10 == 0) {
+            ret = teeos_reseed_fortuna_rng();
+            ZF_LOGI("RNG Reseed return value was %d", ret);
+        }
         ZF_LOGI("Wait msg from comm app...");
         msg_info = seL4_Recv(ipc_app_ep1, &sender_badge);
         sel4_ipc_recv.len = seL4_MessageInfo_get_length(msg_info);

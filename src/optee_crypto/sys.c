@@ -152,6 +152,17 @@ int init_fortuna_rng(void)
     return rng_make_prng(256, wprng, &sel4_prng, NULL);
 }
 
+int sys_reseed_fortuna_rng(void)
+{
+    int ret;
+    uint8_t random_data[32];
+    ret = nonce_service(random_data);
+    if (ret)
+        return ret;
+    ret = fortuna_update_seed(random_data, 32ul, &sel4_prng);
+    return ret;
+}
+
 
 struct bignum *crypto_bignum_allocate(size_t size_bits)
 {

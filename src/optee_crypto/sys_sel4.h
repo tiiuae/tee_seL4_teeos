@@ -31,6 +31,7 @@ void __noreturn __panic(const char *file, const int line, const char *func);
 void __noreturn sys_return_cleanup(void);
 
 int init_fortuna_rng(void);
+int sys_reseed_fortuna_rng(void);
 
 #define err(res, ...) \
 	do { \
