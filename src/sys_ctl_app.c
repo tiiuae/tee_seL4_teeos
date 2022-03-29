@@ -595,7 +595,7 @@ int main(int argc, char **argv)
         return error;
     }
 
-    error = teeos_init_optee_storage();
+    error = teeos_init_optee();
     if (error) {
         return error;
     }

@@ -26,6 +26,7 @@
 #include <utils/zf_log.h>
 
 #include <ree_tee_msg.h>
+#include <key_service.h>
 #include <sys_sel4.h>
 
 #include <crypto/crypto.h>
@@ -208,7 +209,21 @@ struct ts_ctx *ctx;
 int sel4_init_pkcs11_session()
 {
     int ret;
-    ZF_LOGI("\n\n INIT PKCS 11 \n\n");
+    ZF_LOGI("\n\n Open PKCS11 Session \n\n");
+
+    ret = entry_open_session_sel4(PKCS11_SESSION_ID , &up);
+    if (ret)
+    {
+        ZF_LOGI("entry_open_session_sel4 %d", ret);
+    }
+
+    return ret;
+
+}
+
+int teeos_init_optee(void)
+{
+    int ret;
     init_sel4_mempool();
 
     ctx = malloc(sizeof(struct ts_ctx));
@@ -226,15 +241,16 @@ int sel4_init_pkcs11_session()
         ZF_LOGI("tee_ta_init_user_ta_session failed %d", ret);
     }
 
-    ret = entry_open_session_sel4(PKCS11_SESSION_ID , &up);
-    if (ret)
-    {
-        ZF_LOGI("entry_open_session_sel4 %d", ret);
+    /* Init Ramdisk */
+
+    ret = teeos_init_optee_storage();
+    if (ret) {
+         ZF_LOGI("teeos_init_optee_storage failed %d", ret);
     }
-
     return ret;
-
 }
+
+
 
 int sel4_execute_pkcs11_command(TEE_Param params[TEE_NUM_PARAMS], uint32_t paramstype, uint32_t cmd)
 {
