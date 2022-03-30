@@ -101,22 +101,19 @@ TEE_Result _utee_check_access_rights(uint32_t flags, const void *buf,
 /* cancel has type bool */
 TEE_Result _utee_get_cancellation_flag(uint32_t *cancel)
 {
-    IMSG("Not implemented %s ", __func__);
-    return 0;
+    return syscall_get_cancellation_flag(cancel);
 }
 
 /* old_mask has type bool */
 TEE_Result _utee_unmask_cancellation(uint32_t *old_mask)
 {
-    IMSG("Not implemented %s ", __func__);
-    return 0;
+    return syscall_unmask_cancellation(old_mask);
 }
 
 /* old_mask has type bool */
 TEE_Result _utee_mask_cancellation(uint32_t *old_mask)
 {
-    IMSG("Not implemented %s ", __func__);
-    return 0;
+    return syscall_mask_cancellation(old_mask);
 }
 
 TEE_Result _utee_wait(unsigned long timeout)
@@ -342,30 +339,26 @@ TEE_Result _utee_storage_obj_rename(unsigned long obj, const void *new_obj_id,
 /* obj_enum is of type TEE_ObjectEnumHandle */
 TEE_Result _utee_storage_alloc_enum(uint32_t *obj_enum)
 {
-    EMSG("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_alloc_enum(obj_enum);
 }
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
 TEE_Result _utee_storage_free_enum(unsigned long obj_enum)
 {
-    EMSG("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_free_enum(obj_enum);
 }
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
 TEE_Result _utee_storage_reset_enum(unsigned long obj_enum)
 {
-    EMSG("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_reset_enum(obj_enum);
 }
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
 TEE_Result _utee_storage_start_enum(unsigned long obj_enum,
                     unsigned long storage_id)
 {
-    EMSG("Not implemented %s ", __func__);
-    return 0;
+    return syscall_storage_start_enum(obj_enum,storage_id);
 }
 
 /* obj_enum is of type TEE_ObjectEnumHandle */
