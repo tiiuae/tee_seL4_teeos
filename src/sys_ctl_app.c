@@ -494,81 +494,6 @@ static void handle_service_requests(void)
     }
 }
 
-
-
-/*
- * Demo functions to demonstrate system controller services
- *
- */
-void Print_random_number(void)
-{
-    uint8_t random[32];
-
-    if (nonce_service(random))
-    {
-        ZF_LOGI( "Couldn't read Random Number");
-    }
-
-    printf("256 bit random number: \n");
-    for(int i = 0; i < 32; i++)
-    {
-        printf("%2.2x ", random[i]);
-    }
-    printf("\n");
-
-}
-
-void Device_Serial_Number_Print(void)
-{
- uint8_t serial_num_buffer[50];
-
-    memset(serial_num_buffer, 0, ARRAY_SIZE(serial_num_buffer));
-    if (0 == get_serial_number(serial_num_buffer))
-    {
-        printf( "Serial Number: \n" ); // move to boards...
-        for (int i = 0; i < (int)ARRAY_SIZE(serial_num_buffer); i++)
-        {
-            printf("%02x", serial_num_buffer[i]);
-        }
-        printf("\n");
-    }
-    else
-    {
-        ZF_LOGI( "Couldn't read Serial Number");
-    }
-
-}
-
-void puf_demo(uint8_t opcode)
-{
-
-    uint8_t random_input[32] = {0};
-    uint8_t response[32] = {0};
-    int i, status;
-    //generate random bytes
-    nonce_service(random_input);
-    printf("Inuput 16-byte random:\n");
-    for (i = 0; i < 16 ; i++)
-    {
-        printf("%2.2x ", random_input[i]);
-    }
-
-    status = puf_emulation_service(random_input, opcode, response);
-    if (status)
-    {
-        printf("puf service failed %d\n", status);
-        return;
-    }
-
-    printf("\npuf response:\n");
-    for (int i = 0; i < 32; i++)
-    {
-        printf("%2.2x", response[i]);
-    }
-    printf("\n");
-
-}
-
 int main(int argc, char **argv)
 {
     int error = -1;
@@ -634,11 +559,6 @@ int main(int argc, char **argv)
 
     ZF_LOGI("comm app resp (%ld) 0x%lx", msg_len, msg_data);
 
-    /* Demo */
-
-
-    Device_Serial_Number_Print();
-    //test_pkcs11();
     handle_service_requests();
     return error;
 }
