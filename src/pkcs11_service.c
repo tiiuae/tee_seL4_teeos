@@ -5,7 +5,7 @@
  */
 
 /* Local log level */
-#define ZF_LOG_LEVEL ZF_LOG_INFO
+#define ZF_LOG_LEVEL ZF_LOG_ERROR
 
 #include <teeos/gen_config.h>
 
@@ -125,7 +125,7 @@ int sel4_init_pkcs11_session()
     ret = entry_open_session_sel4(PKCS11_SESSION_ID , &up);
     if (ret)
     {
-        ZF_LOGI("entry_open_session_sel4 %d", ret);
+        ZF_LOGE("entry_open_session_sel4 failed %d", ret);
     }
 
     return ret;
@@ -148,13 +148,13 @@ int teeos_init_optee(void)
     ret = tee_ta_init_user_ta_session(&tuid, ses);
     if (ret)
     {
-        ZF_LOGI("tee_ta_init_user_ta_session failed %d", ret);
+        ZF_LOGE("tee_ta_init_user_ta_session failed %d", ret);
     }
 
     /* Init Ramdisk */
     ret = teeos_init_optee_storage();
     if (ret) {
-         ZF_LOGI("teeos_init_optee_storage failed %d", ret);
+         ZF_LOGE("teeos_init_optee_storage failed %d", ret);
     }
     return ret;
 }
