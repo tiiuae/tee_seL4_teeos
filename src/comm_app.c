@@ -80,6 +80,7 @@ DECL_MSG_FN(ree_tee_ext_pubkey_req);
 DECL_MSG_FN(ree_tee_key_import_req);
 DECL_MSG_FN(ree_tee_optee_cmd_req);
 DECL_MSG_FN(ree_tee_optee_init_req);
+DECL_MSG_FN(ree_tee_optee_export_storage_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -98,6 +99,7 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_KEY_IMPORT_REQ, (uintptr_t)ree_tee_key_import_req},
     {REE_TEE_OPTEE_CMD_REQ, (uintptr_t)ree_tee_optee_cmd_req},
     {REE_TEE_OPTEE_INIT_REQ, (uintptr_t)ree_tee_optee_init_req},
+    {REE_TEE_OPTEE_EXPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_export_storage_req},
 };
 
 static int setup_comm_ch(void)
@@ -1160,6 +1162,109 @@ static int ree_tee_optee_init_req(struct ree_tee_hdr *ree_msg __attribute__((unu
 
     return 0;
 }
+
+/* ree_tee_msg_fn:
+ *     For succesfull operation function allocates memory for reply_msg.
+ *     Otherwise function sets err_msg and frees all allocated memory
+ */
+static int ree_tee_optee_storage(struct ree_tee_hdr *ree_msg,
+                               struct ree_tee_hdr **reply_msg,
+                               struct ree_tee_hdr *reply_err,
+                               int32_t ree_reply_type,
+                               seL4_Word ipc_cmd_id,
+                               seL4_Word ipc_resp_id)
+{
+    int err = -1;
+
+    struct ipc_msg_gen_payload sel4_req = {
+        .cmd_id = ipc_cmd_id,
+     };
+    struct ipc_msg_gen_payload sel4_resp = { 0 };
+
+    /* REE messages */
+    uint32_t reply_len = 0;
+    int msg_err = TEE_NOK;
+    struct ree_tee_optee_storage_cmd *req = (struct ree_tee_optee_storage_cmd *)ree_msg;
+    struct ree_tee_optee_storage_cmd *resp = NULL;
+
+    /* Shared Memory */
+    uint8_t *ipc_payload = (uint8_t*)app_shared_memory;
+    uint32_t payload_len = ree_msg->length - REE_HDR_LEN;
+
+    if (ree_msg->length < sizeof(struct ree_tee_optee_storage_cmd)) {
+        ZF_LOGE("Invalid Message size");
+        msg_err = TEE_INVALID_MSG_SIZE;
+        err = -EINVAL;
+        goto err_out;
+    }
+
+    /* Setup IPC data */
+    memcpy(ipc_payload, &req->storage, payload_len);
+
+    /* copy data to ipc shared memory before seL4_Call*/
+    THREAD_MEMORY_RELEASE();
+
+    sel4_req.payload_size = payload_len;
+
+    err = ipc_msg_call(ipc_app_ep1,
+                       IPC_CMD_WORDS(sel4_req),
+                       (seL4_Word *)&sel4_req,
+                       ipc_resp_id,
+                       IPC_CMD_WORDS(sel4_resp),
+                       (seL4_Word *)&sel4_resp);
+
+    if (err) {
+        ZF_LOGE("ERROR ipc_msg_call: %d", err);
+        msg_err = TEE_IPC_CMD_ERR;
+        goto err_out;
+    }
+
+    /* Allocate memory for resp msg */
+    reply_len = REE_HDR_LEN + sel4_resp.payload_size;
+
+    resp = calloc(1, reply_len);
+    if (!resp) {
+        ZF_LOGE("out of memory");
+        msg_err = TEE_OUT_OF_MEMORY;
+        err = -ENOMEM;
+        goto err_out;
+    }
+
+    memcpy(&resp->storage, ipc_payload, sel4_resp.payload_size);
+
+    SET_REE_HDR(&resp->hdr, ree_reply_type, TEE_OK, reply_len);
+
+    ZF_LOGI("Message Length = %d", reply_len);
+
+    *reply_msg = (struct ree_tee_hdr *)resp;
+
+    return 0;
+
+err_out:
+    free(resp);
+
+    SET_REE_HDR(reply_err, ree_reply_type, msg_err, REE_HDR_LEN);
+
+    return err;
+}
+
+/* ree_tee_msg_fn:
+ *     For succesfull operation function allocates memory for reply_msg.
+ *     Otherwise function sets err_msg and frees all allocated memory
+ */
+
+static int ree_tee_optee_export_storage_req(struct ree_tee_hdr *ree_msg,
+                               struct ree_tee_hdr **reply_msg,
+                               struct ree_tee_hdr *reply_err)
+{
+    ZF_LOGI("REE_TEE_OPTEE_EXPORT_STORAGE_REQ");
+
+    return ree_tee_optee_storage(ree_msg, reply_msg, reply_err,
+                                 REE_TEE_OPTEE_EXPORT_STORAGE_RESP,
+                                 IPC_CMD_OPTEE_EXPORT_REQ,
+                                 IPC_CMD_OPTEE_EXPORT_RESP);
+}
+
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
                             struct ree_tee_hdr **reply_msg,
                             struct ree_tee_hdr *reply_err)

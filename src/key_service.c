@@ -65,6 +65,8 @@ static uint8_t fek[FEK_SIZE];
 
 static  struct ree_tee_key_data_storage  *active_key;
 
+static void *optee_ramdisk_buf = NULL;
+static uint32_t optee_ramdisk_buf_len = 0;
 static int generate_ecc_keypair(int size,
                                  uint32_t keytype,
                                  uint8_t *pubkey,
@@ -466,7 +468,7 @@ int teeos_init_optee_storage(void)
 {
     int ret = 0;
 
-    ret = ramdisk_fs_init();
+    ret = ramdisk_fs_init(&optee_ramdisk_buf, &optee_ramdisk_buf_len);
     if (ret) {
         ZF_LOGE("ERROR: %d", ret);
     }
@@ -476,4 +478,39 @@ int teeos_init_optee_storage(void)
 int teeos_reseed_fortuna_rng(void)
 {
     return sys_reseed_fortuna_rng();
+}
+
+int teeos_optee_export_storage(uint32_t storage_offset,
+                               uint32_t *storage_len,
+                               void *buf,
+                               uint32_t buf_len,
+                               uint32_t *export_len)
+{
+    uint32_t copy_len = MIN(optee_ramdisk_buf_len - storage_offset, buf_len);
+
+    if (!storage_len || !buf || !export_len) {
+        ZF_LOGF("ERROR: invalid parameter");
+        return -EINVAL;
+    }
+
+    if (!optee_ramdisk_buf) {
+        ZF_LOGE("ERROR: ramdisk not created");
+        return -EACCES;
+    }
+
+    /* at minimum 1 byte returned */
+    if (storage_offset >= optee_ramdisk_buf_len) {
+        ZF_LOGE("ERROR: invalid offset: %d", storage_offset);
+        return -ESPIPE;
+    }
+
+    memcpy(buf, optee_ramdisk_buf + storage_offset, copy_len);
+
+    *storage_len = optee_ramdisk_buf_len;
+    *export_len = copy_len;
+
+    ZF_LOGI("buff: %d, offset: %d, export: %d, storage: %d",
+        buf_len, storage_offset, *export_len, *storage_len);
+
+    return 0;
 }

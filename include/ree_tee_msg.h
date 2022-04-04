@@ -50,6 +50,8 @@ enum ree_tee_msg {
     REE_TEE_CONFIG_RESP,
     REE_TEE_OPTEE_INIT_REQ,
     REE_TEE_OPTEE_INIT_RESP,
+    REE_TEE_OPTEE_EXPORT_STORAGE_REQ,
+    REE_TEE_OPTEE_EXPORT_STORAGE_RESP,
 
     REE_TEE_INVALID = -1,
 };
@@ -214,6 +216,19 @@ struct ree_tee_optee_cmd
 {
     struct ree_tee_hdr hdr;
     struct ree_tee_optee_payload cmd;
+};
+
+struct ree_tee_optee_storage_bin {
+    uint32_t pos;
+    uint32_t storage_len;
+    uint32_t payload_len;
+    uint8_t payload[0];
+};
+
+struct ree_tee_optee_storage_cmd
+{
+    struct ree_tee_hdr hdr;
+    struct ree_tee_optee_storage_bin storage;
 };
 
 #endif /* _REE_TEE_MSG_H_ */

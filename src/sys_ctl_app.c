@@ -206,7 +206,7 @@ static void handle_service_requests(void)
             case IPC_CMD_CONFIG_REQ:
             {
                 struct ree_tee_config_cmd *cmd = (struct ree_tee_config_cmd*)app_shared_memory;
-                
+
                 /* Current config in reply */
                 if (cmd->debug_config & (1UL << 63)) {
                     cmd->debug_config = sel4_debug_config;
@@ -489,6 +489,41 @@ static void handle_service_requests(void)
                     ZF_LOGI("optee init failed");
                     SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                 }
+            }
+            break;
+            case IPC_CMD_OPTEE_EXPORT_REQ:
+            {
+                ZF_LOGI("OPTEE export storage");
+
+                struct ipc_msg_gen_payload *sel4_resp =
+                    (struct ipc_msg_gen_payload *)sel4_ipc_reply.buf;
+
+                struct ree_tee_optee_storage_bin *storage =
+                    (struct ree_tee_optee_storage_bin*) app_shared_memory;
+
+                uint32_t storage_len = 0;
+                uint32_t export_len = 0;
+                uint32_t max_size = shared_memory_size - sizeof(struct ree_tee_optee_storage_bin);
+
+                int err = teeos_optee_export_storage(storage->pos,
+                                                     &storage_len,
+                                                     storage->payload,
+                                                     max_size,
+                                                     &export_len);
+                if (err) {
+                    ZF_LOGE("OPTEE export storage %d ", err);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
+                    break;
+                }
+
+                storage->payload_len = export_len;
+                storage->storage_len = storage_len;
+
+                sel4_resp->cmd_id = IPC_CMD_OPTEE_EXPORT_RESP;
+                sel4_resp->payload_size =
+                    sizeof(struct ree_tee_optee_storage_bin) + export_len;
+
+                sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_gen_payload);
             }
             break;
             default:
