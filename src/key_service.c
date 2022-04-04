@@ -67,6 +67,10 @@ static  struct ree_tee_key_data_storage  *active_key;
 
 static void *optee_ramdisk_buf = NULL;
 static uint32_t optee_ramdisk_buf_len = 0;
+
+static void *partial_import = NULL;
+static uint32_t partial_import_len = 0;
+
 static int generate_ecc_keypair(int size,
                                  uint32_t keytype,
                                  uint8_t *pubkey,
@@ -468,9 +472,16 @@ int teeos_init_optee_storage(void)
 {
     int ret = 0;
 
-    ret = ramdisk_fs_init(&optee_ramdisk_buf, &optee_ramdisk_buf_len);
+    if (optee_ramdisk_buf) {
+        ZF_LOGI("ramdisk already initialized");
+        return 0;
+    }
+
+    /* create an empty ramdisk */
+    ret = ramdisk_fs_init(NULL, 0, &optee_ramdisk_buf, &optee_ramdisk_buf_len);
     if (ret) {
         ZF_LOGE("ERROR: %d", ret);
+        ret = -EIO;
     }
 
     return ret;
@@ -513,4 +524,67 @@ int teeos_optee_export_storage(uint32_t storage_offset,
         buf_len, storage_offset, *export_len, *storage_len);
 
     return 0;
+}
+
+int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
+                                uint32_t storage_len)
+{
+    int ret = -1;
+
+    if (optee_ramdisk_buf) {
+        ZF_LOGI("ERROR: ramdisk already initialized");
+        return -EACCES;
+    }
+
+    /* allocate buffer for importing storage */
+    if (!partial_import) {
+        ZF_LOGI("storage_len: %d", storage_len);
+
+        partial_import = calloc(1, storage_len);
+        if (!partial_import) {
+            ZF_LOGE("ERROR: out of memory");
+            return -ENOMEM;
+        }
+
+        optee_ramdisk_buf_len = storage_len;
+    }
+
+    if (partial_import_len + import_len > optee_ramdisk_buf_len) {
+        ZF_LOGE("ERROR: corrupted import: %d / %d / %d",
+            partial_import_len, import_len, optee_ramdisk_buf_len);
+        ret = -EFAULT;
+        goto err_out;
+    }
+
+    memcpy(partial_import + partial_import_len, import, import_len);
+
+    partial_import_len += import_len;
+
+    ZF_LOGI("import: %d, pos: %d", import_len, partial_import_len);
+
+    /* last import message, init ramdisk */
+    if (partial_import_len == optee_ramdisk_buf_len) {
+        ZF_LOGI("Received complete storage: %d", optee_ramdisk_buf_len);
+
+        /* use imported storage data to create ramdisk */
+        ret = ramdisk_fs_init(partial_import, partial_import_len, NULL, 0);
+        if (ret) {
+            ZF_LOGE("ERROR: %d", ret);
+            ret = -EIO;
+            goto err_out;
+        }
+
+        optee_ramdisk_buf = partial_import;
+        optee_ramdisk_buf_len = partial_import_len;
+    }
+
+    return 0;
+
+err_out:
+    free(partial_import);
+    partial_import = NULL;
+    partial_import_len = 0;
+    optee_ramdisk_buf_len = 0;
+
+    return ret;
 }

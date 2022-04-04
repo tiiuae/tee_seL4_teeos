@@ -526,6 +526,38 @@ static void handle_service_requests(void)
                 sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_gen_payload);
             }
             break;
+            case IPC_CMD_OPTEE_IMPORT_REQ:
+            {
+                struct ipc_msg_gen_payload *sel4_resp =
+                    (struct ipc_msg_gen_payload *)sel4_ipc_reply.buf;
+
+                struct ree_tee_optee_storage_bin *import =
+                    (struct ree_tee_optee_storage_bin*) app_shared_memory;
+
+                uint32_t max_size = shared_memory_size - sizeof(struct ree_tee_optee_storage_bin);
+
+                if (import->payload_len > max_size) {
+                    ZF_LOGE("Invalid payload length: %d", import->payload_len);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
+                    break;
+                }
+
+                int err = teeos_optee_import_storage(import->payload,
+                                                     import->payload_len,
+                                                     import->storage_len);
+                if (err) {
+                    ZF_LOGE("OPTEE import storage %d ", err);
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
+                    break;
+                }
+
+                sel4_resp->cmd_id = IPC_CMD_OPTEE_IMPORT_RESP;
+                sel4_resp->payload_size = 0; /* comm_app requires ipc_msg_gen_payload */
+
+                sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_gen_payload);
+
+            }
+            break;
             default:
                 ZF_LOGE("Unsupported message 0x%lx", sel4_ipc_recv.buf[0]);
                 SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_UNKNOWN);

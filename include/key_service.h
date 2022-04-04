@@ -18,3 +18,4 @@ int teeos_reseed_fortuna_rng(void);
 int import_key_blob(struct key_data_blob *key_data);
 void destroy_imported_key(void);
 int teeos_optee_export_storage(uint32_t storage_offset, uint32_t *storage_len, void *buf, uint32_t buf_len, uint32_t *export_len);
+int teeos_optee_import_storage(uint8_t *import, uint32_t import_len, uint32_t storage_len);

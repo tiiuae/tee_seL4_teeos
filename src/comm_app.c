@@ -81,6 +81,7 @@ DECL_MSG_FN(ree_tee_key_import_req);
 DECL_MSG_FN(ree_tee_optee_cmd_req);
 DECL_MSG_FN(ree_tee_optee_init_req);
 DECL_MSG_FN(ree_tee_optee_export_storage_req);
+DECL_MSG_FN(ree_tee_optee_import_storage_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -100,6 +101,7 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_OPTEE_CMD_REQ, (uintptr_t)ree_tee_optee_cmd_req},
     {REE_TEE_OPTEE_INIT_REQ, (uintptr_t)ree_tee_optee_init_req},
     {REE_TEE_OPTEE_EXPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_export_storage_req},
+    {REE_TEE_OPTEE_IMPORT_STORAGE_REQ, (uintptr_t)ree_tee_optee_import_storage_req},
 };
 
 static int setup_comm_ch(void)
@@ -1059,7 +1061,7 @@ static int ree_tee_optee_cmd_req(struct ree_tee_hdr *ree_msg,
 
     /* Shared Memory */
     uint8_t *ipc_payload = (uint8_t*)app_shared_memory;
-    uint32_t payload_len = ree_msg->length - sizeof(struct ree_tee_hdr);
+    uint32_t payload_len = ree_msg->length - REE_HDR_LEN;
 
     ZF_LOGI("%s", __FUNCTION__);
 
@@ -1067,6 +1069,13 @@ static int ree_tee_optee_cmd_req(struct ree_tee_hdr *ree_msg,
         ZF_LOGE("Invalid Message size");
         msg_err = TEE_INVALID_MSG_SIZE;
         err = -EINVAL;
+        goto err_out;
+    }
+
+    if (payload_len > app_shared_len) {
+        ZF_LOGE("Payload overflow: %d / %d", payload_len, app_shared_len);
+        msg_err = TEE_PAYLOAD_OVERFLOW;
+        err = -EFBIG;
         goto err_out;
     }
 
@@ -1198,6 +1207,13 @@ static int ree_tee_optee_storage(struct ree_tee_hdr *ree_msg,
         goto err_out;
     }
 
+    if (payload_len > app_shared_len) {
+        ZF_LOGE("Payload overflow: %d / %d", payload_len, app_shared_len);
+        msg_err = TEE_PAYLOAD_OVERFLOW;
+        err = -EFBIG;
+        goto err_out;
+    }
+
     /* Setup IPC data */
     memcpy(ipc_payload, &req->storage, payload_len);
 
@@ -1263,6 +1279,22 @@ static int ree_tee_optee_export_storage_req(struct ree_tee_hdr *ree_msg,
                                  REE_TEE_OPTEE_EXPORT_STORAGE_RESP,
                                  IPC_CMD_OPTEE_EXPORT_REQ,
                                  IPC_CMD_OPTEE_EXPORT_RESP);
+}
+
+/* ree_tee_msg_fn:
+ *     For succesfull operation function allocates memory for reply_msg.
+ *     Otherwise function sets err_msg and frees all allocated memory
+ */
+static int ree_tee_optee_import_storage_req(struct ree_tee_hdr *ree_msg,
+                               struct ree_tee_hdr **reply_msg,
+                               struct ree_tee_hdr *reply_err)
+{
+    ZF_LOGI("REE_TEE_OPTEE_IMPORT_STORAGE_REQ");
+
+    return ree_tee_optee_storage(ree_msg, reply_msg, reply_err,
+                                 REE_TEE_OPTEE_IMPORT_STORAGE_RESP,
+                                 IPC_CMD_OPTEE_IMPORT_REQ,
+                                 IPC_CMD_OPTEE_IMPORT_RESP);
 }
 
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
