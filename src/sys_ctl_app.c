@@ -477,6 +477,20 @@ static void handle_service_requests(void)
                 sel4_ipc_reply.len = IPC_CMD_WORDS(struct ipc_msg_gen_payload);
             }
             break;
+            case IPC_CMD_OPTEE_INIT_REQ:
+            {
+                ZF_LOGI("OPTEE init");
+
+                int err = teeos_init_optee();
+                if (!err) {
+                    SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_OPTEE_INIT_RESP);
+                }
+                else {
+                    ZF_LOGI("optee init failed");
+                    SET_IPC_SYS_FAIL(&sel4_ipc_reply);
+                }
+            }
+            break;
             default:
                 ZF_LOGE("Unsupported message 0x%lx", sel4_ipc_recv.buf[0]);
                 SET_IPC_CMD_TYPE(&sel4_ipc_reply, IPC_CMD_UNKNOWN);
@@ -524,11 +538,6 @@ int main(int argc, char **argv)
     }
 
     error = teeos_init_crypto();
-    if (error) {
-        return error;
-    }
-
-    error = teeos_init_optee();
     if (error) {
         return error;
     }

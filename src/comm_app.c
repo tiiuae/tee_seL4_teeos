@@ -79,6 +79,7 @@ DECL_MSG_FN(ree_tee_gen_key_req);
 DECL_MSG_FN(ree_tee_ext_pubkey_req);
 DECL_MSG_FN(ree_tee_key_import_req);
 DECL_MSG_FN(ree_tee_optee_cmd_req);
+DECL_MSG_FN(ree_tee_optee_init_req);
 
 #define FN_LIST_LEN(fn_list)    (sizeof(fn_list) / (sizeof(fn_list[0][0]) * 2))
 
@@ -96,6 +97,7 @@ static uintptr_t ree_tee_fn[][2] = {
     {REE_TEE_EXT_PUBKEY_REQ, (uintptr_t)ree_tee_ext_pubkey_req},
     {REE_TEE_KEY_IMPORT_REQ, (uintptr_t)ree_tee_key_import_req},
     {REE_TEE_OPTEE_CMD_REQ, (uintptr_t)ree_tee_optee_cmd_req},
+    {REE_TEE_OPTEE_INIT_REQ, (uintptr_t)ree_tee_optee_init_req},
 };
 
 static int setup_comm_ch(void)
@@ -1119,12 +1121,49 @@ err_out:
     return err;
 }
 
+/* ree_tee_msg_fn:
+ *     For succesfull operation function allocates memory for reply_msg.
+ *     Otherwise function sets err_msg and frees all allocated memory
+ */
+static int ree_tee_optee_init_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
+                                  struct ree_tee_hdr **reply_msg,
+                                  struct ree_tee_hdr *reply_err)
+{
+    int err = -1;
+
+    seL4_Word ipc_req = IPC_CMD_OPTEE_INIT_REQ;
+    seL4_Word ipc_resp = 0;
+
+    int32_t reply_type = REE_TEE_OPTEE_INIT_RESP;
+
+    ZF_LOGI("%s", __FUNCTION__);
+
+    err = ipc_msg_call(ipc_app_ep1,
+                       SINGLE_WORD_MSG,
+                       &ipc_req,
+                       IPC_CMD_OPTEE_INIT_RESP,
+                       SINGLE_WORD_MSG,
+                       (seL4_Word *)&ipc_resp);
+
+    if (err) {
+        ZF_LOGF("ERROR ipc_msg_call: %d", err);
+        return err;
+    }
+
+    *reply_msg = malloc(sizeof(struct ree_tee_hdr));
+    if (!*reply_msg) {
+        SET_REE_HDR(reply_err, reply_type, TEE_OUT_OF_MEMORY, REE_HDR_LEN);
+        return TEE_OUT_OF_MEMORY;
+    }
+
+    SET_REE_HDR(*reply_msg, reply_type, TEE_OK, sizeof(struct ree_tee_hdr));
+
+    return 0;
+}
 static int handle_rpmsg_msg(struct ree_tee_hdr *ree_msg,
                             struct ree_tee_hdr **reply_msg,
                             struct ree_tee_hdr *reply_err)
 {
-    ZF_LOGI("handle_rpmsg_msg");
-
     int err = -1;
 
     ree_tee_msg_fn msg_fn = NULL;
@@ -1170,7 +1209,7 @@ static int wait_ree_rpmsg_msg()
     struct ree_tee_hdr *send_msg = NULL;
 
     while (1) {
-        ZF_LOGI("waiting REE msg...");
+        ZF_LOGV("waiting REE msg...");
 
         /* function allocates memory for msg */
         err = rpmsg_wait_ree_msg(&msg, &msg_len);
@@ -1198,7 +1237,7 @@ static int wait_ree_rpmsg_msg()
         free(msg);
         msg = NULL;
 
-        ZF_LOGI("resp type %d, len %d", send_msg->msg_type, send_msg->length);
+        ZF_LOGV("resp type %d, len %d", send_msg->msg_type, send_msg->length);
 
         err = rpmsg_send_ree_msg((char *)send_msg, send_msg->length);
         if (err) {
@@ -1222,7 +1261,7 @@ static void recv_from_app(void)
     seL4_Word sender_badge = 0;
     seL4_Word msg_data = 0;
 
-    ZF_LOGI("Wait msg from app...");
+    ZF_LOGV("Wait msg from app...");
     msg_info = seL4_Recv(ipc_app_ep1, &sender_badge);
     msg_len = seL4_MessageInfo_get_length(msg_info);
 
@@ -1230,7 +1269,7 @@ static void recv_from_app(void)
         msg_data = seL4_GetMR(0);
     }
 
-    ZF_LOGI("msg from 0x%lx (%ld) 0x%lx", sender_badge, msg_len, msg_data);
+    ZF_LOGV("msg from 0x%lx (%ld) 0x%lx", sender_badge, msg_len, msg_data);
 
     msg_info = seL4_MessageInfo_new(0, 0, 0, 1);
     msg_data++;
