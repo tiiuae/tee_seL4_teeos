@@ -25,24 +25,8 @@ enum ipc_cmd {
     IPC_CMD_SYS_CTL_ADDR_RESP,
     IPC_CMD_SYS_CTL_RNG_REQ,
     IPC_CMD_SYS_CTL_RNG_RESP,
-    IPC_CMD_SYS_CTL_SNVM_READ_REQ,
-    IPC_CMD_SYS_CTL_SNVM_READ_RESP,
-    IPC_CMD_SYS_CTL_SNVM_WRITE_REQ,
-    IPC_CMD_SYS_CTL_SNVM_WRITE_RESP,
     IPC_CMD_SYS_CTL_DEVICEID_REQ,
     IPC_CMD_SYS_CTL_DEVICEID_RESP,
-    IPC_CMD_SYS_CTL_PUF_REQ,
-    IPC_CMD_SYS_CTL_PUF_RESP,
-    IPC_CMD_SYS_CTL_NVM_PARAM_REQ,
-    IPC_CMD_SYS_CTL_NVM_PARAM_RESP,
-    IPC_CMD_SYS_CTL_SIGN_REQ,
-    IPC_CMD_SYS_CTL_SIGN_RESP,
-    IPC_CMD_KEY_CREATE_REQ,
-    IPC_CMD_KEY_CREATE_RESP,
-    IPC_CMD_KEY_PUBEXT_REQ,
-    IPC_CMD_KEY_PUBEXT_RESP,
-    IPC_CMD_KEY_IMPORT_REQ,
-    IPC_CMD_KEY_IMPORT_RESP,
     IPC_CMD_OPTEE_REQ,
     IPC_CMD_OPTEE_RESP,
     IPC_CMD_OPTEE_INIT_REQ,
@@ -97,16 +81,6 @@ struct ipc_msg_app_ep {
     seL4_Word app_ep;
 };
 
-struct ipc_msg_key_create_resp {
-    seL4_Word cmd_id;
-    seL4_Word keyblob_offset;
-};
-
-struct ipc_msg_pubkey_export_resp {
-    seL4_Word cmd_id;
-    seL4_Word key_info_offset;
-    seL4_Word pubkey_offset;
-};
 
 struct ipc_msg_gen_payload {
     seL4_Word cmd_id;

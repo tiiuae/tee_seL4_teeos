@@ -9,13 +9,8 @@
 
 #include <sel4/types.h>
 
-
-int generate_key_pair(struct ree_tee_key_info *key_req, struct ree_tee_key_data_storage *payload, uint32_t max_size);
-int extract_public_key(struct key_data_blob *key_data, uint32_t key_data_length, struct ree_tee_key_info *keyinfo, uint8_t *key, uint32_t max_size);
 int teeos_init_crypto(void);
 int teeos_init_optee_storage(void);
 int teeos_reseed_fortuna_rng(void);
-int import_key_blob(struct key_data_blob *key_data);
-void destroy_imported_key(void);
 int teeos_optee_export_storage(uint32_t storage_offset, uint32_t *storage_len, void *buf, uint32_t buf_len, uint32_t *export_len);
 int teeos_optee_import_storage(uint8_t *import, uint32_t import_len, uint32_t storage_len);
