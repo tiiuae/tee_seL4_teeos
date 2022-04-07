@@ -9,6 +9,10 @@ add_library(rpmsg_lite STATIC
     rpmsg_sel4.c
 )
 
+target_compile_definitions(rpmsg_lite PRIVATE
+    TRACE_ERROR_HIGHLIGHT
+)
+
 list(APPEND rpmsg_include_dirs
     "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_SOURCE_DIR}/include/rpmsg_lite"

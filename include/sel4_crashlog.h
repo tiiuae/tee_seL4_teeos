@@ -36,6 +36,9 @@ static struct crashlog_ctx *zf_crashlog_ctx;
     #define ZF_LOG_FATAL   0xFFFF
 #endif
 
+static const char highlight_error[] = "\033[1;31m";
+static const char highlight_normal[] = "\033[0m";
+
 /* originated from projects/util_libs/libutils/src/zf_log.c: output_callback() */
 static inline void zf_crashlog_cb(zf_log_output_ctx *const ctx)
 {
@@ -51,7 +54,20 @@ static inline void zf_crashlog_cb(zf_log_output_ctx *const ctx)
     int32_t read_len = 0;
 
     strcpy(ctx->p, ZF_LOG_EOL);
+
+#ifdef TRACE_ERROR_HIGHLIGHT
+    if (ctx->lvl == ZF_LOG_ERROR) {
+        fputs(highlight_error, stderr);
+    }
+#endif /* TRACE_ERROR_HIGHLIGHT */
+
     fputs(ctx->buf, stderr);
+
+#ifdef TRACE_ERROR_HIGHLIGHT
+    if (ctx->lvl == ZF_LOG_ERROR) {
+        fputs(highlight_normal, stderr);
+    }
+#endif /* TRACE_ERROR_HIGHLIGHT */
 
     ret = sel4_write_to_circ(&circ,
                              strlen(ctx->buf),

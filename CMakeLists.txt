@@ -62,6 +62,10 @@ set(ExtraCompileOptions
     -g
 )
 
+set(ExtraCompileDefinitions
+    TRACE_ERROR_HIGHLIGHT
+)
+
 # RPMSG
 add_library(sysctllib STATIC
     src/sys_ctl_services.c
@@ -70,6 +74,9 @@ add_library(sysctllib STATIC
 target_compile_options(sysctllib
     PRIVATE
     ${ExtraCompileOptions}
+)
+target_compile_definitions(sysctllib PRIVATE
+    ${ExtraCompileDefinitions}
 )
 
 target_include_directories(sysctllib
@@ -137,6 +144,10 @@ target_compile_options(teeos_comm_app
     ${ExtraCompileOptions}
 )
 
+target_compile_definitions(teeos_comm_app PRIVATE
+    ${ExtraCompileDefinitions}
+)
+
 target_include_directories(teeos_comm_app
     PRIVATE
         "include"
@@ -176,6 +187,10 @@ add_executable(sys_ctl_app EXCLUDE_FROM_ALL
 target_compile_options(sys_ctl_app
     PRIVATE
     ${ExtraCompileOptions}
+)
+
+target_compile_definitions(sys_ctl_app PRIVATE
+    ${ExtraCompileDefinitions}
 )
 
 target_include_directories(sys_ctl_app
@@ -231,6 +246,10 @@ target_compile_options(teeos_root
     PRIVATE
     ${ExtraCompileOptions}
     -Wno-unused-parameter
+)
+
+target_compile_definitions(teeos_root PRIVATE
+    ${ExtraCompileDefinitions}
 )
 
 target_include_directories(teeos_root
