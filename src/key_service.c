@@ -70,6 +70,7 @@ struct rambd_ext_hdr {
     uint64_t magic;
     uint64_t ref_count;
     uint64_t buffer_len;
+    uint64_t buffer_hash[TEE_SHA256_HASH_SIZE / sizeof(uint64_t)]; /* uint64_t alignment */
     uint8_t buffer[0];
 };
 
@@ -157,12 +158,62 @@ int teeos_reseed_fortuna_rng(void)
     return sys_reseed_fortuna_rng();
 }
 
+static int teeos_optee_calc_hash(uint8_t *data,
+                                 uint32_t data_len,
+                                 uint8_t *hash_out,
+                                 uint32_t hash_len)
+{
+    int err = -1;
+
+    TEE_Result tee_res = 0;
+    void *hash_ctx = NULL;
+
+    tee_res = crypto_hash_alloc_ctx(&hash_ctx, TEE_ALG_SHA256);
+    if (tee_res) {
+        ZF_LOGE("ERROR: hash_alloc_ctx: 0x%x", tee_res);
+        err = -EIO;
+        goto out;
+    }
+
+    tee_res = crypto_hash_init(hash_ctx);
+    if (tee_res) {
+        ZF_LOGE("ERROR: hash_init: 0x%x", tee_res);
+        err = -EIO;
+        goto out;
+    }
+
+    tee_res = crypto_hash_update(hash_ctx, data, data_len);
+    if (tee_res) {
+        ZF_LOGE("ERROR: hash_update: 0x%x", tee_res);
+        err = -EIO;
+        goto out;
+    }
+
+    tee_res = crypto_hash_final(hash_ctx,
+                               hash_out,
+                               hash_len);
+    if (tee_res) {
+        ZF_LOGE("ERROR: hash_final: 0x%x", tee_res);
+        err = -EIO;
+        goto out;
+    }
+
+    err = 0;
+
+out:
+    if (hash_ctx)
+        crypto_hash_free_ctx(hash_ctx);
+
+    return err;
+}
+
 int teeos_optee_export_storage(uint32_t storage_offset,
                                uint32_t *storage_len,
                                void *buf,
                                uint32_t buf_len,
                                uint32_t *export_len)
 {
+    int err = -1;
     uint32_t ramdisk_len = 0;
     uint32_t copy_len = 0;
 
@@ -197,6 +248,19 @@ int teeos_optee_export_storage(uint32_t storage_offset,
         return -ESPIPE;
     }
 
+    /* update header before it is exported */
+    if (storage_offset == 0) {
+        err = teeos_optee_calc_hash(optee_ramdisk->buffer,
+                                    optee_ramdisk->buffer_len,
+                                    (uint8_t *)optee_ramdisk->buffer_hash,
+                                    sizeof(optee_ramdisk->buffer_hash));
+        if (err) {
+            return err;
+        }
+
+        optee_ramdisk->ref_count++; /* TODO: optee_ramdisk->ref_count = update_monotonic_counter() */
+    }
+
     copy_len = MIN(ramdisk_len - storage_offset, buf_len);
 
     memcpy(buf, (void*)optee_ramdisk + storage_offset, copy_len);
@@ -214,10 +278,31 @@ static int teeos_optee_import_storage_final(struct rambd_ext_hdr *ramdisk,
                                             uint32_t ramdisk_len)
 {
     int err = -1;
+
+    uint8_t hash[TEE_SHA256_HASH_SIZE] = { 0 } ;
+
     if (ramdisk->magic != RAMBD_HDR_MAGIC_V01) {
         ZF_LOGE("ERROR: bad magic: %ld", ramdisk->magic);
         return -EIO;
     }
+
+    /* TODO: verify ramdisk->ref_count with monotonic counter value*/
+
+    /* calc hash over received ramdisk and compare it with header value */
+    err = teeos_optee_calc_hash(ramdisk->buffer,
+                                        ramdisk->buffer_len,
+                                        hash,
+                                        sizeof(hash));
+    if (err) {
+        return err;
+    }
+
+    if (memcmp(hash, ramdisk->buffer_hash, sizeof(hash)) != 0) {
+        ZF_LOGE("ERROR: hash mismatch");
+        return -EACCES;
+    }
+
+
     /* use imported storage data to create ramdisk */
     err = ramdisk_fs_init(ramdisk, ramdisk_len,
                           sizeof(struct rambd_ext_hdr),
@@ -278,15 +363,13 @@ int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
         }
 
         optee_ramdisk = optee_import.buf;
-
-        memset(&optee_import, 0x0, sizeof(struct partial_import));
     }
 
     return 0;
 
 err_out:
     free(optee_import.buf);
-    memset(&optee_import, 0x0, sizeof(struct partial_import));
+    optee_import.buf = NULL;
 
     return ret;
 }
