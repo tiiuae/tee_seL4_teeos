@@ -71,6 +71,7 @@ struct rambd_ext_hdr {
     uint64_t ref_count;
     uint64_t buffer_len;
     uint64_t buffer_hash[TEE_SHA256_HASH_SIZE / sizeof(uint64_t)]; /* uint64_t alignment */
+    uint64_t pad[1]; /* 16 byte alignment padding for AES */
     uint8_t buffer[0];
 };
 
