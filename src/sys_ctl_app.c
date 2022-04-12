@@ -303,6 +303,7 @@ static void handle_service_requests(void)
                 uint32_t storage_len = 0;
                 uint32_t export_len = 0;
                 uint32_t max_size = shared_memory_size - sizeof(struct ree_tee_optee_storage_bin);
+                max_size = max_size - max_size % 16;
 
                 int err = teeos_optee_export_storage(storage->pos,
                                                      &storage_len,
@@ -334,13 +335,13 @@ static void handle_service_requests(void)
                     (struct ree_tee_optee_storage_bin*) app_shared_memory;
 
                 uint32_t max_size = shared_memory_size - sizeof(struct ree_tee_optee_storage_bin);
+                max_size = max_size - max_size % 16;
 
                 if (import->payload_len > max_size) {
                     ZF_LOGE("Invalid payload length: %d", import->payload_len);
                     SET_IPC_SYS_FAIL(&sel4_ipc_reply);
                     break;
                 }
-
                 int err = teeos_optee_import_storage(import->payload,
                                                      import->payload_len,
                                                      import->storage_len);

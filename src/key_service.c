@@ -5,13 +5,14 @@
  */
 
 /* Local log level */
-#define ZF_LOG_LEVEL ZF_LOG_INFO
-// #define PLAINTEXT_DATA
+#define ZF_LOG_LEVEL ZF_LOG_ERROR
+
 
 #include <teeos/gen_config.h>
 
 #include <regex.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -44,29 +45,21 @@ extern seL4_CPtr ipc_root_ep;
 extern seL4_CPtr ipc_app_ep1;
 extern void *app_shared_memory;
 
-#define RSA_GUID_INDEX      0
-#define ECC_GUID_INDEX      1
-#define X25519_GUID_INDEX   2
-
-#define KEY_BUF_SIZE    2048
 #define FEK_SIZE        16u
-
-#define  PK_PUBLIC      0x0000
-   /* Refers to the private key */
-#define PK_PRIVATE      0x0001
-#define PK_STD          0x1000
-#define IV_LENGTH       16
+#define IV_SIZE         16u
 
 static const TEE_UUID uuid = {
                     0x5f8b97df, 0x2d0d, 0x4ad2,
                     {0x98, 0xd2, 0x74, 0xf4, 0x38, 0x27, 0x98, 0xbb},
                 };
 
-static uint8_t fek[FEK_SIZE];
+static uint8_t sel4_fek[FEK_SIZE];
+static void *fs_ctx = NULL;
 
 #define RAMBD_HDR_MAGIC_V01     0x31305F64626D6172  /* 'r'a'm'b'd'_'0'1' */
 
 struct rambd_ext_hdr {
+    uint8_t iv[IV_SIZE]; /*16 byte IV for aes, this is not encrypted */
     uint64_t magic;
     uint64_t ref_count;
     uint64_t buffer_len;
@@ -118,7 +111,7 @@ int teeos_init_crypto(void)
         ZF_LOGI("tee_fs_init_key_manager failed = %d", err);
     }
 
-    err = generate_fek(fek);
+    err = generate_fek(sel4_fek);
     if (err)
     {
         ZF_LOGI("fek generation failed = %d", err);
@@ -157,6 +150,74 @@ int teeos_init_optee_storage(void)
 int teeos_reseed_fortuna_rng(void)
 {
     return sys_reseed_fortuna_rng();
+}
+
+static int tee_fs_crypt_init(TEE_OperationMode mode, void **ctx, uint8_t *decrypt_iv)
+{
+    int res;
+    uint8_t fek[TEE_FS_KM_FEK_SIZE];
+    uint8_t rand[32];
+    uint8_t *iv;
+
+    ZF_LOGI("%scrypt init", (mode == TEE_MODE_ENCRYPT) ? "En" : "De");
+
+    /* Decrypt FEK */
+    res = tee_fs_fek_crypt(&uuid, TEE_MODE_DECRYPT, sel4_fek,
+                   TEE_FS_KM_FEK_SIZE, fek);
+    if (res != TEE_SUCCESS)
+        return res;
+
+    if (mode == TEE_MODE_ENCRYPT) {
+        iv = optee_ramdisk->iv;
+        /* Use random number as IV and store it to ramdisk image header */
+        nonce_service(rand);
+        memcpy(iv, rand, TEE_AES_BLOCK_SIZE);
+    } else {
+        iv = decrypt_iv;
+    }
+
+    res = crypto_cipher_alloc_ctx(ctx, TEE_ALG_AES_CBC_NOPAD);
+    if (res != TEE_SUCCESS)
+        return res;
+
+    res = crypto_cipher_init(*ctx, mode, fek, sizeof(fek), NULL,
+                 0, iv, TEE_AES_BLOCK_SIZE);
+    if (res != TEE_SUCCESS)
+        goto exit;
+    return 0;
+
+exit:
+    crypto_cipher_free_ctx(*ctx);
+    return res;
+
+}
+
+static int tee_fs_crypt_run(uint8_t *buffer, size_t size,
+                  TEE_OperationMode mode,
+                  bool last, void **ctx)
+{
+    int res;
+    uint8_t *out;
+
+    out = malloc(size);
+
+    if (!out)
+        return -ENOMEM;
+    res = crypto_cipher_update(*ctx, mode, last, buffer, size, out);
+    if (!res)
+        memcpy(buffer, out, size);
+
+    free(out);
+
+    return res;
+}
+
+static void tee_fs_crypt_close(void **ctx)
+{
+    if (*ctx) {
+        crypto_cipher_final(*ctx);
+        crypto_cipher_free_ctx(*ctx);
+    }
 }
 
 static int teeos_optee_calc_hash(uint8_t *data,
@@ -258,13 +319,38 @@ int teeos_optee_export_storage(uint32_t storage_offset,
         if (err) {
             return err;
         }
+        /* Init encryption */
+        err = tee_fs_crypt_init(TEE_MODE_ENCRYPT, &fs_ctx, NULL);
+        if (err) {
+            return err;
+        }
 
         optee_ramdisk->ref_count++; /* TODO: optee_ramdisk->ref_count = update_monotonic_counter() */
     }
 
     copy_len = MIN(ramdisk_len - storage_offset, buf_len);
 
-    memcpy(buf, (void*)optee_ramdisk + storage_offset, copy_len);
+    uint8_t *source = (uint8_t*)optee_ramdisk + storage_offset;
+    memcpy(buf, source, copy_len);
+
+    if (ramdisk_len - storage_offset <= buf_len) {
+        ZF_LOGI("Encrypting last block");
+        err = tee_fs_crypt_run(buf, (size_t)copy_len,TEE_MODE_ENCRYPT, true, &fs_ctx);
+        if (err)
+            goto crypt_error;
+        tee_fs_crypt_close(&fs_ctx);
+        fs_ctx = NULL;
+
+    } else if (storage_offset == 0) {
+        ZF_LOGI("Encrypting first block");
+        err = tee_fs_crypt_run(buf + IV_SIZE, (size_t)copy_len - IV_SIZE, TEE_MODE_ENCRYPT, false, &fs_ctx);
+        if (err)
+            goto crypt_error;
+    } else {
+        err = tee_fs_crypt_run(buf, (size_t)copy_len,TEE_MODE_ENCRYPT, false, &fs_ctx);
+        if (err)
+            goto crypt_error;
+    }
 
     *storage_len = ramdisk_len;
     *export_len = copy_len;
@@ -273,6 +359,11 @@ int teeos_optee_export_storage(uint32_t storage_offset,
         buf_len, storage_offset, *export_len, *storage_len);
 
     return 0;
+crypt_error:
+    tee_fs_crypt_close(&fs_ctx);
+    fs_ctx = NULL;
+    memset(buf, 0, copy_len);
+    return err;
 }
 
 static int teeos_optee_import_storage_final(struct rambd_ext_hdr *ramdisk,
@@ -338,6 +429,13 @@ int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
 
         optee_import.received = 0;
         optee_import.remaining = storage_len;
+
+        ZF_LOGI("Import crypt Init");
+        ret = tee_fs_crypt_init(TEE_MODE_DECRYPT, &fs_ctx, import); /* IV is 16 first bytes */
+        if (ret) {
+            return ret;
+        }
+
     }
 
     if (import_len > optee_import.remaining) {
@@ -346,31 +444,49 @@ int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
         ret = -EFAULT;
         goto err_out;
     }
-
     memcpy(optee_import.buf + optee_import.received, import, import_len);
 
-    optee_import.received += import_len;
     optee_import.remaining -= import_len;
-
-    ZF_LOGI("import: %d, pos: %d", import_len, optee_import.received);
-
-    /* last import message, init ramdisk */
-    if (optee_import.remaining == 0) {
-        ZF_LOGI("Received complete storage: %d", optee_import.received);
-
-        ret = teeos_optee_import_storage_final(optee_import.buf, optee_import.received);
+    uint8_t *source = optee_import.buf + optee_import.received;
+    /* First block*/
+    if (optee_import.received == 0) {
+        ZF_LOGI("Decrypting first block");
+        ret = tee_fs_crypt_run(optee_import.buf + IV_SIZE, (size_t)import_len - IV_SIZE, TEE_MODE_DECRYPT, false, &fs_ctx);
         if (ret) {
             goto err_out;
         }
 
+    } else  if (optee_import.remaining == 0) {
+        ZF_LOGI("Received complete storage: %d", optee_import.received);
+        ret = tee_fs_crypt_run(source, (size_t)import_len,TEE_MODE_DECRYPT, true, &fs_ctx);
+        if (ret) {
+            goto err_out;
+        }
+
+        tee_fs_crypt_close(&fs_ctx);
+        fs_ctx = NULL;
+
+        ret = teeos_optee_import_storage_final(optee_import.buf, optee_import.received + import_len);
+        if (ret) {
+            goto err_out;
+        }
         optee_ramdisk = optee_import.buf;
+    } else {
+        ret = tee_fs_crypt_run(source, (size_t)import_len,TEE_MODE_DECRYPT, false, &fs_ctx);
+        if (ret) {
+            goto err_out;
+        }
     }
 
+    optee_import.received += import_len;
     return 0;
 
 err_out:
+    tee_fs_crypt_close(&fs_ctx);
+    fs_ctx = NULL;
     free(optee_import.buf);
     optee_import.buf = NULL;
 
     return ret;
 }
+
