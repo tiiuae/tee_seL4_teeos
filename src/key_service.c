@@ -47,6 +47,12 @@ extern void *app_shared_memory;
 
 #define FEK_SIZE        16u
 #define IV_SIZE         16u
+#define NVM_PAGE_SIZE   252
+#define NVM_PAGE_COUNTER 128
+enum counter_t {
+    FS_MONOTONIC = 1,
+    INVALID = 100,
+};
 
 static const TEE_UUID uuid = {
                     0x5f8b97df, 0x2d0d, 0x4ad2,
@@ -77,6 +83,55 @@ struct partial_import {
 };
 
 static struct partial_import optee_import = { 0 };
+
+static uint8_t nvm_page[NVM_PAGE_SIZE];
+struct nvm_counter {
+    uint64_t fs_monotonic_counter;
+    uint64_t aux_counter;
+};
+
+static int read_counter(enum counter_t counter, uint64_t *value)
+{
+    int ret = -1;
+    uint32_t admin_data;
+
+    switch (counter)
+    {
+    case FS_MONOTONIC:
+        {
+            ret = secure_nvm_read(NVM_PAGE_COUNTER, NULL, (uint8_t*)&admin_data, nvm_page, NVM_PAGE_SIZE);
+            struct nvm_counter *counter = (struct nvm_counter*)nvm_page;
+            *value = counter->fs_monotonic_counter;
+        }
+        break;
+
+    default:
+        return -EINVAL;
+    }
+    return ret;
+}
+
+static int write_counter(enum counter_t counter, uint64_t value)
+{
+    int ret = -1;
+
+    switch (counter)
+    {
+    case FS_MONOTONIC:
+        {
+            struct nvm_counter *counter = (struct nvm_counter*)nvm_page;
+            counter->fs_monotonic_counter = value;
+            ret = secure_nvm_write(MSS_SYS_SNVM_NON_AUTHEN_TEXT_REQUEST_CMD, NVM_PAGE_COUNTER,
+                                            nvm_page,NULL);
+        }
+        break;
+
+    default:
+        return -EINVAL;
+    }
+    return ret;
+}
+
 
 static int generate_fek(uint8_t *buf)
 {
@@ -325,7 +380,11 @@ int teeos_optee_export_storage(uint32_t storage_offset,
             return err;
         }
 
-        optee_ramdisk->ref_count++; /* TODO: optee_ramdisk->ref_count = update_monotonic_counter() */
+        optee_ramdisk->ref_count++;
+        err = write_counter(FS_MONOTONIC, optee_ramdisk->ref_count);
+        if (err) {
+            return err;
+        }
     }
 
     copy_len = MIN(ramdisk_len - storage_offset, buf_len);
@@ -370,6 +429,7 @@ static int teeos_optee_import_storage_final(struct rambd_ext_hdr *ramdisk,
                                             uint32_t ramdisk_len)
 {
     int err = -1;
+    uint64_t counter_value;
 
     uint8_t hash[TEE_SHA256_HASH_SIZE] = { 0 } ;
 
@@ -378,7 +438,15 @@ static int teeos_optee_import_storage_final(struct rambd_ext_hdr *ramdisk,
         return -EIO;
     }
 
-    /* TODO: verify ramdisk->ref_count with monotonic counter value*/
+    /* verify ramdisk->ref_count with monotonic counter value*/
+    err = read_counter(FS_MONOTONIC, &counter_value);
+    if (err) {
+        return err;
+    }
+    if(counter_value != ramdisk->ref_count) {
+        ZF_LOGE("ERROR: monotonic counter mismatch");
+        return -EACCES;
+    }
 
     /* calc hash over received ramdisk and compare it with header value */
     err = teeos_optee_calc_hash(ramdisk->buffer,
