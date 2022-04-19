@@ -296,7 +296,7 @@ int secure_nvm_write
     uint16_t index = 0;
     int status = -1;
 
-    if((!p_data) || (!p_user_key) ||(snvm_module >= 221))
+    if((!p_data) ||(snvm_module >= 221))
     {
         return -EINVAL;
     }
@@ -308,6 +308,9 @@ int secure_nvm_write
     if ((format == MSS_SYS_SNVM_AUTHEN_TEXT_REQUEST_CMD) ||
        (format == MSS_SYS_SNVM_AUTHEN_CIPHERTEXT_REQUEST_CMD))
     {
+
+        if (!p_user_key)
+            return -EINVAL;
         /* Copy user data */
         for (index = 0u; index < (MSS_SYS_AUTHENTICATED_TEXT_DATA_LEN
                 - MSS_SYS_USER_SECRET_KEY_LEN - 4); index++)
@@ -373,7 +376,7 @@ int secure_nvm_read
     int status = -1;
     uint8_t response[256] = {0x00};
 
-    if((!p_data) || (!p_admin) || (!p_user_key) || (snvm_module >= 221))
+    if((!p_data) || (!p_admin) || (snvm_module >= 221))
     {
         return -EINVAL;
     }
@@ -384,6 +387,9 @@ int secure_nvm_read
     /* Copy user key */
     if (236u == data_len)
     {
+        if (!p_user_key)
+            return -EINVAL;
+
         for (index = 0u; index < 12u; index++)
         {
             *p_frame = p_user_key[index];
