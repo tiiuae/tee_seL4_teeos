@@ -399,6 +399,7 @@ int teeos_optee_export_storage(uint32_t storage_offset,
             goto crypt_error;
         tee_fs_crypt_close(&fs_ctx);
         fs_ctx = NULL;
+        ramdisk_fs_reset_storage_counter();
 
     } else if (storage_offset == 0) {
         ZF_LOGI("Encrypting first block");

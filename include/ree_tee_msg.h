@@ -94,6 +94,7 @@ struct ree_tee_optee_payload
     uint32_t optee_cmd;
     uint32_t ta_cmd;
     uint32_t ta_result;
+    uint32_t fs_counter;
     uint8_t params[0];
 };
 

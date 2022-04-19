@@ -18,6 +18,7 @@
 #include "ree_tee_msg.h"
 
 #include "pkcs11_service.h"
+#include <tee_fs.h>
 
 static TEE_Param ta_param[TEE_NUM_PARAMS] = { 0 };
 static TEE_Param ref_param[TEE_NUM_PARAMS] = { 0 };
@@ -351,7 +352,7 @@ int sel4_optee_handle_cmd(uint8_t *buf_in_out,
     *buf_out_len = sizeof(struct ree_tee_optee_payload) + param_len;
 
     memcpy(cmd->params, reply_param, param_len);
-
+    cmd->fs_counter = ramdisk_fs_read_storage_counter();
     sel4_dealloc_memrefs(ptypes, ta_param);
     free(reply_param);
 
