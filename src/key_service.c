@@ -49,6 +49,7 @@ extern void *app_shared_memory;
 #define IV_SIZE         16u
 #define NVM_PAGE_SIZE   252
 #define NVM_PAGE_COUNTER 128
+#define PUF_FEK_INDEX   2
 enum counter_t {
     FS_MONOTONIC = 1,
     INVALID = 100,
@@ -136,10 +137,16 @@ static int write_counter(enum counter_t counter, uint64_t value)
 static int generate_fek(uint8_t *buf)
 {
     int err;
+    uint8_t puf_resp[32];
+    /* Use serial number as a challenge for puf*/
     err = get_serial_number(buf);
+    if (err)
+        return err;
+    /* Use PUF as a key */
+    err = puf_emulation_service(buf,PUF_FEK_INDEX, puf_resp);
     if (!err)
     {
-        err = tee_fs_fek_crypt(&uuid, TEE_MODE_ENCRYPT, buf, FEK_SIZE , buf);
+        err = tee_fs_fek_crypt(&uuid, TEE_MODE_ENCRYPT, puf_resp, FEK_SIZE , buf);
     }
     return err;
 }
