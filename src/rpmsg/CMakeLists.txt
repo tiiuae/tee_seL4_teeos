@@ -14,17 +14,15 @@ target_compile_definitions(rpmsg_lite PRIVATE
 )
 
 list(APPEND rpmsg_include_dirs
-    "${PROJECT_SOURCE_DIR}/include"
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite"
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/config"
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/rpmsg"
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/rpmsg/platform/microchip/miv"
+    "${SEL4_TEEOS_INCLUDE}"
+    "${SEL4_TEEOS_INCLUDE}/rpmsg_lite"
+    "${SEL4_TEEOS_INCLUDE}/rpmsg_lite/config"
+    "${SEL4_TEEOS_INCLUDE}/rpmsg_lite/rpmsg"
+    "${SEL4_TEEOS_INCLUDE}/rpmsg_lite/rpmsg/platform/microchip/miv"
 )
 
 target_include_directories(rpmsg_lite
-    INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    PRIVATE
+    PUBLIC
         ${rpmsg_include_dirs}
 )
 

@@ -10,6 +10,8 @@ include(settings.cmake)
 
 project(sel4_teeos C CXX ASM)
 
+set(SEL4_TEEOS_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/include" CACHE STRING "")
+
 set(LibUtilsDefaultZfLogLevel 3 CACHE INTERNAL "")
 
 find_package(seL4 REQUIRED)
@@ -66,7 +68,6 @@ set(ExtraCompileDefinitions
     TRACE_ERROR_HIGHLIGHT
 )
 
-# RPMSG
 add_library(sysctllib STATIC
     src/sys_ctl_services.c
 )
@@ -95,13 +96,8 @@ target_link_libraries(sysctllib
         sel4_teeos_Config
 )
 
+# RPMSG
 add_subdirectory(src/rpmsg)
-list(APPEND rpmsg_inc
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite"
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/rpmsg"
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/config"
-    "${PROJECT_SOURCE_DIR}/include/rpmsg_lite/rpmsg/platform/microchip/miv"
-)
 
 #libtomcrypt
 
@@ -151,7 +147,6 @@ target_compile_definitions(teeos_comm_app PRIVATE
 target_include_directories(teeos_comm_app
     PRIVATE
         "include"
-        "${rpmsg_inc}"
 )
 
 target_link_options(teeos_comm_app
@@ -255,7 +250,6 @@ target_compile_definitions(teeos_root PRIVATE
 target_include_directories(teeos_root
     PRIVATE
         "include"
-        "${rpmsg_inc}"
 )
 
 target_link_options(teeos_root
