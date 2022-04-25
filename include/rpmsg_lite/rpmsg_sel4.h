@@ -6,6 +6,7 @@
 #pragma once
 
 #include <sel4/types.h>
+#include <sel4/errors.h>
 
 #include "rpmsg_lite.h"
 #include "rpmsg_queue.h"
@@ -17,6 +18,8 @@
 #define RPMSG_SEL4_EPT_ADDR         6U
 #define RPMSG_TTY_CHANNEL_NAME      "rpmsg-virtual-tty-channel"
 
+typedef seL4_Error (*sel4_irq_handler_ack_fn)(seL4_IRQHandler _service);
+typedef void (*sel4_wait_fn)(seL4_CPtr src, seL4_Word *sender);
 
 struct sel4_rpmsg_config {
     uintptr_t ihc_buf_pa;
@@ -24,6 +27,9 @@ struct sel4_rpmsg_config {
 
     seL4_CPtr ihc_irq;
     seL4_CPtr ihc_ntf;
+
+    sel4_wait_fn            irq_notify_wait;
+    sel4_irq_handler_ack_fn irq_handler_ack;
 
     void *vring_va;
     uintptr_t vring_pa;

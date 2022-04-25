@@ -44,13 +44,18 @@ int32_t platform_init_interrupt(uint32_t vector_id, void *isr_data)
 {
     int err = -1;
 
+    if (!sel4_config) {
+        ZF_LOGE("Config uninitialized");
+        return RL_NOT_READY;
+    }
+
     /* Register ISR to environment layer */
     env_register_isr(vector_id, isr_data);
 
     /* Ack the handler so interrupts can come in */
-    err = seL4_IRQHandler_Ack(sel4_config->ihc_irq);
+    err = sel4_config->irq_handler_ack(sel4_config->ihc_irq);
     if (err) {
-        ZF_LOGF("seL4_IRQHandler_Ack failed: %d", err);
+        ZF_LOGF("IRQ ack failed: %d", err);
         return RL_NOT_READY;
     }
 
@@ -67,9 +72,16 @@ int32_t platform_deinit_interrupt(uint32_t vector_id)
 
 void platform_notify(uint32_t vector_id)
 {
-    struct miv_ihc_msg *tx = (struct miv_ihc_msg *)sel4_config->ihc_buf_va;
+    struct miv_ihc_msg *tx = NULL;
+
+    if (!sel4_config) {
+        ZF_LOGE("Config uninitialized");
+        return;
+    }
 
     env_lock_mutex(platform_lock);
+
+    tx = (struct miv_ihc_msg *)sel4_config->ihc_buf_va;
 
     memset(tx, 0xFF, sizeof(struct miv_ihc_msg));
 
@@ -266,13 +278,14 @@ int platform_wait_ihc(uint32_t *ihc_type)
 {
     seL4_Word badge = 0;
     int err = -1;
-    uint32_t ihc = 0;
+    uint32_t ihc = IHC_CALL_INVALID;
 
-    if (ihc_type) {
-        *ihc_type = IHC_CALL_INVALID;
+    if (!sel4_config) {
+        ZF_LOGE("Config uninitialized");
+        return RL_NOT_READY;
     }
 
-    seL4_Wait(sel4_config->ihc_ntf, &badge);
+    sel4_config->irq_notify_wait(sel4_config->ihc_ntf, &badge);
 
     ihc = platform_ihc_get_next(sel4_config);
 
@@ -281,7 +294,7 @@ int platform_wait_ihc(uint32_t *ihc_type)
     }
 
     /* Ack the handler so interrupts can come in */
-    err = seL4_IRQHandler_Ack(sel4_config->ihc_irq);
+    err = sel4_config->irq_handler_ack(sel4_config->ihc_irq);
     if (err) {
         ZF_LOGE("seL4_IRQHandler_Ack failed: %d", err);
         return RL_NOT_READY;

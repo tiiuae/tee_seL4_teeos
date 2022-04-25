@@ -174,6 +174,9 @@ static int setup_ihc_buf(struct sel4_rpmsg_config *rpmsg_conf)
     rpmsg_conf->vring_va = (void*)ipc_resp.vring_va;
     rpmsg_conf->vring_pa = ipc_resp.vring_pa;
 
+    rpmsg_conf->irq_handler_ack = seL4_IRQHandler_Ack;
+    rpmsg_conf->irq_notify_wait = seL4_Wait;
+
     ZF_LOGI("ihc_buf_pa [0x%lx]", rpmsg_conf->ihc_buf_pa);
     ZF_LOGI("ihc_buf_va [%p]", rpmsg_conf->ihc_buf_va);
     ZF_LOGI("ihc_irq    [0x%lx]", rpmsg_conf->ihc_irq);
