@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.7.2)
 
 include(settings.cmake)
 
-project(teeos_amp C CXX ASM)
+project(sel4_teeos C CXX ASM)
 
 set(LibUtilsDefaultZfLogLevel 3 CACHE INTERNAL "")
 
@@ -38,7 +38,7 @@ config_string(
 # rdtime-counter frequency
 config_set(HwTimerFreq HW_TIMER_FREQ 1000000)
 
-add_config_library(teeos "${configure_string}")
+add_config_library(sel4_teeos "${configure_string}")
 
 find_package(musllibc REQUIRED)
 find_package(util_libs REQUIRED)
@@ -92,7 +92,7 @@ target_link_libraries(sysctllib
         sel4platsupport
         sel4_autoconf
     PRIVATE
-        teeos_Config
+        sel4_teeos_Config
 )
 
 add_subdirectory(src/rpmsg)
@@ -171,8 +171,8 @@ target_link_libraries(teeos_comm_app
         sel4platsupport
         sel4muslcsys
         opteecrypt
-    PRIVATE 
-        teeos_Config
+    PRIVATE
+        sel4_teeos_Config
         rpmsg_lite
 )
 
@@ -218,7 +218,7 @@ target_link_libraries(sys_ctl_app
         sel4platsupport
         sel4muslcsys
     PRIVATE
-        teeos_Config
+        sel4_teeos_Config
         sysctllib
         tomcrypt
         opteecrypt
@@ -274,8 +274,8 @@ target_link_libraries(teeos_root
         sel4utils
         sel4platsupport
         sel4muslcsys
-    PRIVATE 
-        teeos_Config
+    PRIVATE
+        sel4_teeos_Config
         rpmsg_lite
 )
 

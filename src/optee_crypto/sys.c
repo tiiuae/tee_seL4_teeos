@@ -19,7 +19,7 @@
 #include <sel4runtime.h>
 #include <util.h>
 #include <sys_ctl_service.h>
-#include <teeos/gen_config.h>
+#include <sel4_teeos/gen_config.h>
 #include <tommath.h>
 #include <mempool.h>
 #include "sys_sel4.h"

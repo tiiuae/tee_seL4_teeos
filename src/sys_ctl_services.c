@@ -6,7 +6,7 @@
 
 /* HSS example -->*/
 
-#include <teeos/gen_config.h>
+#include <sel4_teeos/gen_config.h>
 
 #include <regex.h>
 #include <stdio.h>

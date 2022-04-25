@@ -187,7 +187,7 @@ target_link_libraries(opteecrypt
         sel4platsupport
         sel4_autoconf
     PRIVATE
-        teeos_Config
+        sel4_teeos_Config
         tomcrypt
         tommath
         sysctllib

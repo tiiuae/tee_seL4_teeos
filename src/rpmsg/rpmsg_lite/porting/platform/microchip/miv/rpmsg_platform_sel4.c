@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <teeos/gen_config.h>
+#include <sel4_teeos/gen_config.h>
 #include <sel4runtime.h>
 #include "rpmsg_platform.h"
 #include "rpmsg_env.h"

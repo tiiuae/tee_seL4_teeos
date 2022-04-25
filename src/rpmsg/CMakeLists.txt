@@ -29,13 +29,12 @@ target_include_directories(rpmsg_lite
 )
 
 target_link_libraries(rpmsg_lite
-    PUBLIC
+    PRIVATE
         muslc
         sel4
         sel4runtime
         sel4utils
         sel4platsupport
         sel4_autoconf
-    PRIVATE
-        teeos_Config
+        sel4_teeos_Config
 )

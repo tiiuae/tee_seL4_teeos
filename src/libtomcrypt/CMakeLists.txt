@@ -243,7 +243,7 @@ target_link_libraries(tomcrypt
         sel4platsupport
         sel4_autoconf
     PRIVATE
-        teeos_Config
+        sel4_teeos_Config
         tommath
 )
 
