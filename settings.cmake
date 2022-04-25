@@ -63,6 +63,7 @@ ApplyCommonReleaseVerificationSettings(${RELEASE} ${VERIFICATION})
 
 set(KernelNumDomains 1 CACHE STRING "" FORCE)
 set(KernelMaxNumNodes 1 CACHE STRING "" FORCE)
+set(KernelCustomDTSOverlay "${CMAKE_CURRENT_LIST_DIR}/overlay-polarfire_amp.dts" CACHE FILEPATH "" FORCE)
 
 set(KernelHssIhcSyscall ON CACHE BOOL "")
 

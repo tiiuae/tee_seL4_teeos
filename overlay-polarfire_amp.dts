@@ -1,0 +1,70 @@
+ /*
+ * Copyright 2022, Unikie Oy
+ *
+ * SPDX-License-Identifier: GPL-2.0-only
+ */
+
+/ {
+	cpus {
+		cpu@0 { /* HSS */
+			status = "disabled";
+		};
+		cpu@1 { /* reserved for REE */
+			status = "disabled";
+		};
+		cpu@2 { /* reserved for REE */
+			status = "disabled";
+		};
+		cpu@3 { /* reserved for REE */
+			status = "disabled";
+		};
+	};
+
+    /* Reserve 2 MiB for SBI at the start of RAM (0x80000000 - 0x80200000). This
+     * is exactly one "megapage" in the MMU table. It leaves plenty of space for
+     * further SBI experimenting, given the known usage (as of June 2021) is:
+     * - BBL: 76 KiB (= 0x13000)
+     * - OpenSBI: 128 KiB (= 0x20000) with PMP protection
+     *
+     * REE memory starting from 0x89000000
+     */
+
+	memory@80000000 { /* overwrite uses same label as in dts file */
+		reg = <0x0 0x80200000 0x0 0x8E00000>;
+	};
+
+	/* RPMSG vring reservation from linux devicetree
+	 *
+	 * Combines memory areas reserved for rpmsg and rpmsg_dma_reserved
+	 *
+	 *     rpmsg: rpmsg {
+	 *         compatible = "microchip,miv-rpmsg";
+	 *         reg =  <0x0 0xa2400000 0x0 0x10000>;
+	 *         memory-region = <&rpmsg_dma_reserved>;
+	 *         mboxes= <&ihc 0>;
+	 *     };
+	 *
+	 *     rpmsg_dma_reserved: rpmsg_dma@0xa2410000 {
+	 *         compatible = "shared-dma-pool";
+	 *         reg = <0x0 0xa2410000 0x0 0x40000>;
+	 *         label = "rpmsg-ddr";
+	 *     };
+	 *
+	 * NOTE!! rpmsg-lite supports only 32bit address range. RL_WORD_ALIGN_-macros
+	 * shrink address to uint32_t
+	 *
+	 * I.e. area MUST be located in lower DDR range.
+	 */
+	rpmsg@a2400000 {
+		reg = <0x0 0xa2400000 0x0 0x50000>; // rpmsg + rpmsg_dma_reserved
+	};
+
+	/*
+	 * Reserved memory area for seL4 crashlog.
+	 *
+	 * CIRC-header + power of 2 buffer
+	 */
+	sel4_crashlog@a2450000 {
+		reg = <0x0 0xa2450000 0x0 0x2000>;
+	};
+};
