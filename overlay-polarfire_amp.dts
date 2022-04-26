@@ -20,17 +20,30 @@
 		};
 	};
 
-    /* Reserve 2 MiB for SBI at the start of RAM (0x80000000 - 0x80200000). This
-     * is exactly one "megapage" in the MMU table. It leaves plenty of space for
-     * further SBI experimenting, given the known usage (as of June 2021) is:
-     * - BBL: 76 KiB (= 0x13000)
-     * - OpenSBI: 128 KiB (= 0x20000) with PMP protection
-     *
-     * REE memory starting from 0x89000000
-     */
+	/* Reserve 2 MiB for SBI at the start of RAM (0x80000000 - 0x80200000). This
+	 * is exactly one "megapage" in the MMU table. It leaves plenty of space for
+	 * further SBI experimenting, given the known usage (as of June 2021) is:
+	 * - BBL: 76 KiB (= 0x13000)
+	 * - OpenSBI: 128 KiB (= 0x20000) with PMP protection
+	 *
+	 * REE memory starting from 0x89000000
+	 */
 
 	memory@80000000 { /* overwrite uses same label as in dts file */
 		reg = <0x0 0x80200000 0x0 0x8E00000>;
+	};
+
+	mailbox@37020800 {
+		compatible = "microchip,mpfs-mailbox";
+		reg = <0x0 0x37020000 0x0 0x2000>;
+		interrupt-parent = <&L1>;
+		interrupts = <96>;
+		#mbox-cells = <1>;
+	};
+
+	sysregscb@20003000 {
+		compatible = "microchip,mpfs-mailbox";
+		reg = <0x0 0x20003000 0x0 0x1000>;
 	};
 
 	/* RPMSG vring reservation from linux devicetree
