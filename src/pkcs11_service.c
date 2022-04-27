@@ -134,7 +134,6 @@ int sel4_init_pkcs11_session()
 int teeos_init_optee(void)
 {
     int ret;
-    init_sel4_mempool();
 
     ctx = malloc(sizeof(struct ts_ctx));
 

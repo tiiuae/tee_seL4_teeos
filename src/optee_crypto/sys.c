@@ -120,7 +120,7 @@ int tee_otp_get_die_id(uint8_t *buffer, size_t len)
     if (res)
         goto err;
 
-    memcpy(buffer, &uid, MIN(max_size_uid, len));
+    memcpy(buffer, uid, MIN(max_size_uid, len));
     return 0;
 
 err:
@@ -307,44 +307,9 @@ void mutex_lock(struct mutex *m)
     m = m;
 }
 
-
 uint8_t ta_heap[16 * 1024];
 const size_t ta_heap_size = sizeof(ta_heap);
 const size_t ta_num_props = 8;
-
-
-struct mempool {
-    size_t size;  /* size of the memory pool, in bytes */
-    vaddr_t data;
-};
-
-struct mempool *mempool_default;
-
-/* Size needed for xtest to pass reliably on both ARM32 and ARM64 */
-#define MPI_MEMPOOL_SIZE	(46 * 1024)
-static uint8_t data[MPI_MEMPOOL_SIZE];
-struct mempool p;
-
-void init_sel4_mempool(void)
-{
-    p.data = (vaddr_t)data;
-    p.size = MPI_MEMPOOL_SIZE;
-    mempool_default = &p;
-}
-
-void mempool_free(struct mempool *pool, void *ptr)
-{
-    free(ptr);
-    pool->data = (vaddr_t)0;
-    pool->size = 0;
-}
-
-void *mempool_alloc(struct mempool *pool, size_t size)
-{
-    pool->data=(vaddr_t)malloc(size);
-    pool->size=size;
-    return (void*)pool->data;
-}
 
 uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
             struct thread_param *params)
