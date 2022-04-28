@@ -68,33 +68,7 @@ set(ExtraCompileDefinitions
     TRACE_ERROR_HIGHLIGHT
 )
 
-add_library(sysctllib STATIC
-    src/sys_ctl_services.c
-)
-
-target_compile_options(sysctllib
-    PRIVATE
-    ${ExtraCompileOptions}
-)
-target_compile_definitions(sysctllib PRIVATE
-    ${ExtraCompileDefinitions}
-)
-
-target_include_directories(sysctllib
-    PRIVATE
-        "include"
-)
-target_link_libraries(sysctllib
-    PUBLIC
-        muslc
-        sel4
-        sel4runtime
-        sel4utils
-        sel4platsupport
-        sel4_autoconf
-    PRIVATE
-        sel4_teeos_Config
-)
+add_subdirectory(src/sys_ctl_service)
 
 # RPMSG
 add_subdirectory(src/rpmsg)
