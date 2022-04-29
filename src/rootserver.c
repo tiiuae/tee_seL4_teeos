@@ -453,7 +453,6 @@ static int send_sys_ctl_addr(struct root_env *ctx)
         .cmd_id = IPC_CMD_SYS_CTL_ADDR_RESP,
         .reg_base = (uintptr_t)ctx->mbox.app_addr,
         .mbox_base = (uintptr_t)(ctx->mbox.app_addr + 0x800),
-        .mbox_len = 0x800,
         .msg_int_reg = (uintptr_t)(ctx->sysregcb.app_addr + 0x18C),
         .shared_memory = (uintptr_t)ctx->sys_app.shared_mem,
         .shared_len = ctx->sys_app.shared_len,

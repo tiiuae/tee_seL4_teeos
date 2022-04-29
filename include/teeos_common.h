@@ -70,7 +70,6 @@ struct ipc_msg_cys_ctl_addr {
     seL4_Word cmd_id;
     seL4_Word reg_base;          /* System controller register base address */
     seL4_Word mbox_base;         /* mailbox base address */
-    seL4_Word mbox_len;          /* mailbox length (2k) */
     seL4_Word msg_int_reg;       /* message interrupt register */
     seL4_Word shared_memory;     /* Shared memory for applications */
     seL4_Word shared_len;        /* Shared memory length */

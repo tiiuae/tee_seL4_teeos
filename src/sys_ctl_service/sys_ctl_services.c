@@ -33,14 +33,12 @@
 #define MBOX_OFFSET 0
 
 
-static uint32_t *sys_reg_base;
 static uint32_t *mbox_base;
 static uint32_t *msg_int_reg;
 struct sbcctrl_t *sbcctrl;
 
 void set_sys_ctl_address(uint32_t *sys_b, uint32_t *mb_b, uint32_t *mint_reg)
 {
-    sys_reg_base = sys_b;
     mbox_base = mb_b;
     msg_int_reg = mint_reg;
     sbcctrl = (struct sbcctrl_t *)sys_b;
@@ -80,7 +78,7 @@ static int request_system_service
 
     /*Code for MSS_SYS_PARAM_ERR is not implemented with this version of driver.*/
 
-    msg_int_reg = 0x0u; /*clear message_int reg*/
+    /* *msg_int_reg = 0x0u; */ /*clear message_int reg*/
 
 
     if (cmd_data_size > 0u)
