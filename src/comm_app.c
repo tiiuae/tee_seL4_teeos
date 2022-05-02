@@ -19,7 +19,7 @@
 #include "utils/attribute.h"
 #include <teeos_common.h>
 #include <ree_tee_msg.h>
-#include <key_service.h>
+#include <teeos_service.h>
 
 /* Local log level */
 #define ZF_LOG_LEVEL    ZF_LOG_ERROR

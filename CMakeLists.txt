@@ -148,7 +148,7 @@ target_link_libraries(teeos_comm_app
 # APP2
 add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
-    src/key_service.c
+    src/teeos_service.c
     src/pkcs11_service.c
     src/sel4_optee_serializer.c
 )

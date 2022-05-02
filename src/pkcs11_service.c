@@ -26,7 +26,7 @@
 #include <utils/zf_log.h>
 
 #include <ree_tee_msg.h>
-#include <key_service.h>
+#include <teeos_service.h>
 #include <sys_sel4.h>
 
 #include <crypto/crypto.h>

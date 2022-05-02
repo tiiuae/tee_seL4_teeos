@@ -20,7 +20,7 @@
 #include <teeos_common.h>
 #include <sys_ctl_service.h>
 #include <ree_tee_msg.h>
-#include <key_service.h>
+#include <teeos_service.h>
 #include <pkcs11_service.h>
 
 /* Local log level */
