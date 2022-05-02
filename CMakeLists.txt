@@ -84,25 +84,7 @@ list(APPEND libtomcrypt_inc
 )
 
 # littlefs
-add_library(littlefs STATIC
-    ${LITTLEFS_SRC_FOLDER}/lfs.c
-    ${LITTLEFS_SRC_FOLDER}/lfs_util.c
-    ${LITTLEFS_SRC_FOLDER}/bd/lfs_rambd.c
-)
-
-target_compile_options(littlefs
-    PRIVATE
-        ${ExtraCompileOptions}
-)
-
-target_include_directories(littlefs
-    PUBLIC ${LITTLEFS_SRC_FOLDER}
-)
-
-target_link_libraries(littlefs
-    PUBLIC
-        muslc
-)
+add_subdirectory(src/littlefs)
 
 # TEE2REE communication app
 add_executable(teeos_comm_app EXCLUDE_FROM_ALL
@@ -145,10 +127,11 @@ target_link_libraries(teeos_comm_app
         rpmsg_lite
 )
 
+add_subdirectory(src/teeos_service)
+
 # APP2
 add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
-    src/teeos_service.c
     src/pkcs11_service.c
     src/sel4_optee_serializer.c
 )
@@ -165,9 +148,6 @@ target_compile_definitions(sys_ctl_app PRIVATE
 target_include_directories(sys_ctl_app
     PRIVATE
         "include"
-        "${libtomcrypt_inc}"
-        "${OPTEE_SRC_FOLDER}/core/include"
-        "src/optee_crypto"
 )
 
 target_link_options(sys_ctl_app
@@ -193,6 +173,7 @@ target_link_libraries(sys_ctl_app
         opteecrypt
         tommath
         littlefs
+        teeos_service
 )
 
 # CPIO

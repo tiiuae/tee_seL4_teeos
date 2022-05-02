@@ -7,7 +7,6 @@
 /* Local log level */
 #define ZF_LOG_LEVEL ZF_LOG_ERROR
 
-
 #include <sel4_teeos/gen_config.h>
 
 #include <regex.h>

@@ -14,5 +14,12 @@ config_set(HwTimerFreq HW_TIMER_FREQ 1000000)
 add_config_library(sel4_teeos "${configure_string}")
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/rpmsg" rpmsg_lite)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/littlefs" littlefs)
+
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/libtommath" libtommath)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/libtomcrypt" libtomcrypt)
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/optee_crypto" optee_crypto)
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/sys_ctl_service" sys_ctl_service)
+
+add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/teeos_service" teeos_service)

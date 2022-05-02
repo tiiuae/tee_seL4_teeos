@@ -105,6 +105,7 @@ list(APPEND opteecrypt_include_dirs
     "${OPTEE_SRC_FOLDER}/ta/pkcs11/src"
     "${OPTEE_SRC_FOLDER}/ta/pkcs11/include"
     "include"
+    "${CMAKE_CURRENT_LIST_DIR}"
 )
 
 target_include_directories(opteecrypt
