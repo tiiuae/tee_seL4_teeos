@@ -44,11 +44,8 @@ extern seL4_CPtr ipc_root_ep;
 extern seL4_CPtr ipc_app_ep1;
 extern void *app_shared_memory;
 
-#define FEK_SIZE        16u
 #define IV_SIZE         16u
-#define NVM_PAGE_SIZE   252
 #define NVM_PAGE_COUNTER 128
-#define PUF_FEK_INDEX   2
 enum counter_t {
     FS_MONOTONIC = 1,
     INVALID = 100,

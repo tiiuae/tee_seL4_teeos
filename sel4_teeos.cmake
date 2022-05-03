@@ -20,6 +20,4 @@ add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/libtommath" libtommath)
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/libtomcrypt" libtomcrypt)
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/optee_crypto" optee_crypto)
 
-add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/sys_ctl_service" sys_ctl_service)
-
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src/teeos_service" teeos_service)

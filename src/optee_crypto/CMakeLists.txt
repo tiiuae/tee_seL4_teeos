@@ -191,7 +191,6 @@ target_link_libraries(opteecrypt
         sel4_teeos_Config
         tomcrypt
         tommath
-        sysctllib
         littlefs
 )
 

@@ -15,10 +15,8 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
-
+#include <stdint.h>
 #include <sel4runtime.h>
-#include <sel4platsupport/platsupport.h>
-#include <sel4utils/process.h>
 
 #include <teeos_common.h>
 #include <sys_ctl_service.h>

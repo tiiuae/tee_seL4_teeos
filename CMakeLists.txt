@@ -68,8 +68,6 @@ set(ExtraCompileDefinitions
     TRACE_ERROR_HIGHLIGHT
 )
 
-add_subdirectory(src/sys_ctl_service)
-
 # RPMSG
 add_subdirectory(src/rpmsg)
 
@@ -132,8 +130,6 @@ add_subdirectory(src/teeos_service)
 # APP2
 add_executable(sys_ctl_app EXCLUDE_FROM_ALL
     src/sys_ctl_app.c
-    src/pkcs11_service.c
-    src/sel4_optee_serializer.c
 )
 
 target_compile_options(sys_ctl_app
@@ -168,12 +164,13 @@ target_link_libraries(sys_ctl_app
         sel4muslcsys
     PRIVATE
         sel4_teeos_Config
-        sysctllib
         tomcrypt
         opteecrypt
         tommath
         littlefs
         teeos_service
+        sys_ctl_services
+        pkcs11_service
 )
 
 # CPIO

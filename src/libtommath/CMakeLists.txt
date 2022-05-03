@@ -188,7 +188,6 @@ target_link_libraries(tommath
         sel4_autoconf
     PRIVATE
         sel4_teeos_Config
-        sysctllib
 )
 
 export(PACKAGE ${PROJECT_NAME})

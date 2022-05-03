@@ -9,6 +9,10 @@
 
 #include <sel4/types.h>
 
+#define FEK_SIZE        16u
+#define PUF_FEK_INDEX   2
+#define NVM_PAGE_SIZE   252
+
 int teeos_init_crypto(void);
 int teeos_init_optee_storage(void);
 int teeos_reseed_fortuna_rng(void);
