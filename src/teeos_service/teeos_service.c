@@ -383,6 +383,12 @@ int teeos_optee_export_storage(uint32_t storage_offset,
             return err;
         }
 
+        /* Read counter from NVM and increase it */
+        err = read_counter(FS_MONOTONIC, &optee_ramdisk->ref_count);
+        if (err) {
+            return err;
+        }
+
         optee_ramdisk->ref_count++;
         err = write_counter(FS_MONOTONIC, optee_ramdisk->ref_count);
         if (err) {
