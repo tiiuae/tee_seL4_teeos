@@ -269,6 +269,9 @@ static int ree_tee_config_req(struct ree_tee_hdr *ree_msg,
 
     memcpy(ipc, req, cmd_len);
 
+    /* copy data to ipc shared memory before IPC */
+    THREAD_MEMORY_RELEASE();
+
     /*call to sys app*/
     ZF_LOGI("Send msg to sys app...");
 
@@ -347,6 +350,9 @@ static int ree_tee_rng_req(struct ree_tee_hdr *ree_msg __attribute__((unused)),
 
     SET_REE_HDR(&resp->hdr, reply_type, TEE_OK, cmd_len);
 
+    /* copy data from ipc shared memory after IPC */
+    THREAD_MEMORY_RELEASE();
+
     /* copy random number from shared buffer*/
     memcpy(resp->response, ipc, RNG_SIZE_IN_BYTES);
 
@@ -409,6 +415,9 @@ static int ree_tee_deviceid_req(struct ree_tee_hdr *ree_msg __attribute__((unuse
 
     SET_REE_HDR(&resp->hdr, reply_type, TEE_OK, cmd_len);
 
+    /* copy data from ipc shared memory after IPC */
+    THREAD_MEMORY_RELEASE();
+
     /* copy device id from shared buffer*/
     memcpy(resp->response, ipc, DEVICE_ID_LENGTH);
 
@@ -466,7 +475,10 @@ static int ree_tee_optee_cmd_req(struct ree_tee_hdr *ree_msg,
     /* Setup IPC data */
     memcpy(ipc_payload, &req->cmd, payload_len);
 
-    /* copy data to ipc shared memory before seL4_Call*/
+    /* Copy data to ipc shared memory before seL4_Call.
+     * Using sel4_resp.payload_size-value as reply_len
+     * should provide ordering for memcpy following IPC.
+     */
     THREAD_MEMORY_RELEASE();
 
     ZF_LOGI("OPTEE cmd");
@@ -601,7 +613,10 @@ static int ree_tee_optee_storage(struct ree_tee_hdr *ree_msg,
     /* Setup IPC data */
     memcpy(ipc_payload, &req->storage, payload_len);
 
-    /* copy data to ipc shared memory before seL4_Call*/
+    /* Copy data to ipc shared memory before seL4_Call.
+     * Using sel4_resp.payload_size-value as reply_len
+     * should provide ordering for memcpy following IPC.
+     */
     THREAD_MEMORY_RELEASE();
 
     sel4_req.payload_size = payload_len;
