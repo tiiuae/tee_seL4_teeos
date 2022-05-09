@@ -372,7 +372,7 @@ int secure_nvm_read
     int status = -1;
     uint8_t response[256] = {0x00};
 
-    if((!p_data) || (!p_admin) || (snvm_module >= 221))
+    if((!p_data) || (!p_admin) || (snvm_module >= 221) || data_len > sizeof(response))
     {
         return -EINVAL;
     }

@@ -511,6 +511,7 @@ int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
         ZF_LOGI("Import crypt Init");
         ret = tee_fs_crypt_init(TEE_MODE_DECRYPT, &fs_ctx, import); /* IV is 16 first bytes */
         if (ret) {
+            ZF_LOGE("ERROR: crypto init: %d", ret);
             return ret;
         }
 
@@ -538,6 +539,7 @@ int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
         ZF_LOGI("Received complete storage: %d", optee_import.received);
         ret = tee_fs_crypt_run(source, (size_t)import_len,TEE_MODE_DECRYPT, true, &fs_ctx);
         if (ret) {
+            ZF_LOGE("ERROR: crypto op: %d", ret);
             goto err_out;
         }
 
@@ -552,6 +554,7 @@ int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
     } else {
         ret = tee_fs_crypt_run(source, (size_t)import_len,TEE_MODE_DECRYPT, false, &fs_ctx);
         if (ret) {
+            ZF_LOGE("ERROR: crypto op: %d", ret);
             goto err_out;
         }
     }
