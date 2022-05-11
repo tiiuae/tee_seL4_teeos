@@ -125,26 +125,3 @@ static inline int ipc_msg_call(seL4_CPtr ep,
 
     return 0;
 }
-
-static inline void app_hexdump(void* mem, size_t len)
-{
-    uint8_t *ch = (uint8_t*)mem;
-
-    for (size_t i = 0; i < len; i++)
-    {
-        if (i % 16 == 0) {
-            if (i != 0) {
-                printf("\n");
-            }
-            printf("%p: 0x%02x", ch, *ch);
-        } 
-        else {
-            printf(" 0x%02x", *ch);
-        }
-
-        ch++;
-    }
-    printf("\n");
-}
-
-

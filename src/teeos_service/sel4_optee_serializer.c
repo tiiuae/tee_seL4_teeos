@@ -12,6 +12,7 @@
 #define ZF_LOG_LEVEL    ZF_LOG_ERROR
 #include <utils/util.h>
 #include <utils/zf_log.h>
+#include <utils/debug.h>
 
 #include "sel4_optee_serializer.h"
 #include "teeos_common.h"
@@ -63,7 +64,7 @@ static int sel4_optee_deserialize_memref(struct serialized_param *ser, TEE_Param
     memcpy(params->memref.buffer, ser->value, ser->val_len);
 
     if (ZF_LOG_OUTPUT_DEBUG)
-        app_hexdump(ser->value, ser->val_len);
+        utils_memory_dump(ser->value, ser->val_len, 1);
 
     return 0;
 }
@@ -228,7 +229,7 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
             memcpy(param->value, &tee_params[i].value, param->val_len);
 
             if (ZF_LOG_OUTPUT_DEBUG)
-                app_hexdump(param->value, param->val_len);
+                utils_memory_dump(param->value, param->val_len, 1);
 
             break;
         case TEE_PARAM_TYPE_MEMREF_INPUT:
@@ -249,8 +250,10 @@ int sel4_optee_serialize(struct serialized_param **ser_param, uint32_t *ser_len,
                        MIN(tee_params[i].memref.size, ref_params[i].memref.size));
 
                 if (ZF_LOG_OUTPUT_DEBUG)
-                    app_hexdump(tee_params[i].memref.buffer,
-                                MIN(tee_params[i].memref.size, ref_params[i].memref.size));
+                    utils_memory_dump(
+                        tee_params[i].memref.buffer,
+                        MIN(tee_params[i].memref.size, ref_params[i].memref.size),
+                        1);
             }
             break;
         default:
