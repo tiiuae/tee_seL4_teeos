@@ -123,6 +123,7 @@ target_link_libraries(teeos_comm_app
     PRIVATE
         sel4_teeos_Config
         rpmsg_lite
+        sel4_crashlog
 )
 
 add_subdirectory(src/teeos_service)
@@ -171,6 +172,7 @@ target_link_libraries(sys_ctl_app
         teeos_service
         sys_ctl_services
         pkcs11_service
+        sel4_crashlog
 )
 
 # CPIO
@@ -223,6 +225,7 @@ target_link_libraries(teeos_root
     PRIVATE
         sel4_teeos_Config
         rpmsg_lite
+        sel4_crashlog
 )
 
 # Set this image as the rootserver

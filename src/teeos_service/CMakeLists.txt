@@ -28,6 +28,7 @@ target_link_libraries(teeos_service
         muslc
         sel4_teeos_Config
         opteecrypt
+        sel4_crashlog
 )
 
 add_library(sys_ctl_services STATIC
@@ -45,6 +46,7 @@ target_link_libraries(sys_ctl_services
         sel4platsupport
         sel4_autoconf
         sel4_teeos_Config
+        sel4_crashlog
 )
 
 add_library(pkcs11_service STATIC
@@ -62,4 +64,21 @@ target_link_libraries(pkcs11_service
         muslc
         sel4_teeos_Config
         opteecrypt
+        sel4_crashlog
+)
+
+add_library(sel4_crashlog STATIC
+    sel4_crashlog.c
+)
+
+target_include_directories(sel4_crashlog
+    PUBLIC
+        ${SEL4_TEEOS_INCLUDE}
+)
+
+target_link_libraries(sel4_crashlog
+    PRIVATE
+        muslc
+        sel4platsupport
+        sel4_teeos_Config
 )
