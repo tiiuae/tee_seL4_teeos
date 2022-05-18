@@ -104,11 +104,11 @@ static int read_counter(enum counter_t counter_id, uint64_t *value)
     return ret;
 }
 
-static int write_counter(enum counter_t counter, uint64_t value)
+static int write_counter(enum counter_t counter_id, uint64_t value)
 {
     int ret = -1;
 
-    switch (counter)
+    switch (counter_id)
     {
     case FS_MONOTONIC:
         {
@@ -331,6 +331,75 @@ out:
     return err;
 }
 
+static int export_storage_init()
+{
+    int err = -1;
+
+    /* Calculate hash over ramdisk */
+    err = teeos_optee_calc_hash(optee_ramdisk->buffer,
+                                optee_ramdisk->buffer_len,
+                                (uint8_t *)optee_ramdisk->buffer_hash,
+                                sizeof(optee_ramdisk->buffer_hash));
+    if (err) {
+        return err;
+    }
+
+    /* Init encryption */
+    err = tee_fs_crypt_init(TEE_MODE_ENCRYPT, &fs_ctx, NULL);
+    if (err) {
+        return err;
+    }
+
+    /* Read counter from NVM and increase it */
+    err = read_counter(FS_MONOTONIC, &optee_ramdisk->ref_count);
+    if (err) {
+        return err;
+    }
+
+    optee_ramdisk->ref_count++;
+    err = write_counter(FS_MONOTONIC, optee_ramdisk->ref_count);
+    if (err) {
+        return err;
+    }
+
+    return 0;
+}
+
+static int export_storage_crypto(void *buf,
+                                 uint32_t buf_len,
+                                 bool first_block,
+                                 bool last_block)
+{
+    uint8_t *crypto_buf = (uint8_t *)buf;
+    uint32_t crypto_len = buf_len;
+
+    int err = -1;
+
+    if (first_block) {
+        /* IV is located at the beginning of buffer, skip */
+        crypto_buf = (uint8_t *)(buf + IV_SIZE);
+        crypto_len = buf_len - IV_SIZE;
+    }
+
+    err = tee_fs_crypt_run(crypto_buf, (size_t)crypto_len, TEE_MODE_ENCRYPT, last_block, &fs_ctx);
+    if (err)
+        goto err_out;
+
+    if (last_block) {
+        tee_fs_crypt_close(&fs_ctx);
+        fs_ctx = NULL;
+        ramdisk_fs_reset_storage_counter();
+    }
+
+    return 0;
+
+err_out:
+    tee_fs_crypt_close(&fs_ctx);
+    fs_ctx = NULL;
+    memset(buf, 0, buf_len);
+    return err;
+}
+
 int teeos_optee_export_storage(uint32_t storage_offset,
                                uint32_t *storage_len,
                                void *buf,
@@ -340,6 +409,9 @@ int teeos_optee_export_storage(uint32_t storage_offset,
     int err = -1;
     uint32_t ramdisk_len = 0;
     uint32_t copy_len = 0;
+
+    bool first_block = false;
+    bool last_block = false;
 
     if (!storage_len || !buf || !export_len) {
         ZF_LOGF("ERROR: invalid parameter");
@@ -362,6 +434,9 @@ int teeos_optee_export_storage(uint32_t storage_offset,
             ZF_LOGE("ERROR: invalid buffer len: %d", buf_len);
             return -EPERM;
         }
+
+        first_block = true;
+        ZF_LOGI("Export first block");
     }
 
     ramdisk_len = sizeof(struct rambd_ext_hdr) + optee_ramdisk->buffer_len;
@@ -372,29 +447,13 @@ int teeos_optee_export_storage(uint32_t storage_offset,
         return -ESPIPE;
     }
 
-    /* update header before it is exported */
-    if (storage_offset == 0) {
-        err = teeos_optee_calc_hash(optee_ramdisk->buffer,
-                                    optee_ramdisk->buffer_len,
-                                    (uint8_t *)optee_ramdisk->buffer_hash,
-                                    sizeof(optee_ramdisk->buffer_hash));
-        if (err) {
-            return err;
-        }
-        /* Init encryption */
-        err = tee_fs_crypt_init(TEE_MODE_ENCRYPT, &fs_ctx, NULL);
-        if (err) {
-            return err;
-        }
+    if (ramdisk_len - storage_offset <= buf_len) {
+        last_block = true;
+        ZF_LOGI("Export last block");
+    }
 
-        /* Read counter from NVM and increase it */
-        err = read_counter(FS_MONOTONIC, &optee_ramdisk->ref_count);
-        if (err) {
-            return err;
-        }
-
-        optee_ramdisk->ref_count++;
-        err = write_counter(FS_MONOTONIC, optee_ramdisk->ref_count);
+    if (first_block) {
+        err = export_storage_init();
         if (err) {
             return err;
         }
@@ -402,28 +461,11 @@ int teeos_optee_export_storage(uint32_t storage_offset,
 
     copy_len = MIN(ramdisk_len - storage_offset, buf_len);
 
-    uint8_t *source = (uint8_t*)optee_ramdisk + storage_offset;
-    memcpy(buf, source, copy_len);
+    memcpy(buf, (uint8_t *)optee_ramdisk + storage_offset, copy_len);
 
-    if (ramdisk_len - storage_offset <= buf_len) {
-        ZF_LOGI("Encrypting last block");
-        err = tee_fs_crypt_run(buf, (size_t)copy_len,TEE_MODE_ENCRYPT, true, &fs_ctx);
-        if (err)
-            goto crypt_error;
-        tee_fs_crypt_close(&fs_ctx);
-        fs_ctx = NULL;
-        ramdisk_fs_reset_storage_counter();
-
-    } else if (storage_offset == 0) {
-        ZF_LOGI("Encrypting first block");
-        err = tee_fs_crypt_run(buf + IV_SIZE, (size_t)copy_len - IV_SIZE, TEE_MODE_ENCRYPT, false, &fs_ctx);
-        if (err)
-            goto crypt_error;
-    } else {
-        err = tee_fs_crypt_run(buf, (size_t)copy_len,TEE_MODE_ENCRYPT, false, &fs_ctx);
-        if (err)
-            goto crypt_error;
-    }
+    err = export_storage_crypto(buf, copy_len, first_block, last_block);
+    if (err)
+        return err;
 
     *storage_len = ramdisk_len;
     *export_len = copy_len;
@@ -432,11 +474,6 @@ int teeos_optee_export_storage(uint32_t storage_offset,
         buf_len, storage_offset, *export_len, *storage_len);
 
     return 0;
-crypt_error:
-    tee_fs_crypt_close(&fs_ctx);
-    fs_ctx = NULL;
-    memset(buf, 0, copy_len);
-    return err;
 }
 
 static int teeos_optee_import_storage_final(struct rambd_ext_hdr *ramdisk,
