@@ -28,6 +28,7 @@ void sel4_dealloc_memrefs(uint32_t ptypes, TEE_Param *tee_params)
 {
     if (!tee_params) {
         ZF_LOGE("tee_params empty");
+        return;
     }
 
     for (int i = 0; i < TEE_NUM_PARAMS; i++) {
@@ -95,8 +96,7 @@ int sel4_optee_deserialize(struct serialized_param *ser_param, uint32_t ser_len,
 
     if (!ser_param || !ptypes || !tee_params) {
         ZF_LOGE("Invalid params");
-        err = -EINVAL;
-        goto out;
+        return -EINVAL;
     }
 
     if (ser_len < (sizeof(struct serialized_param) * TEE_NUM_PARAMS)) {

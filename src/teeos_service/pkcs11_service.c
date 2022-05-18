@@ -115,7 +115,8 @@ const struct user_ta_property ta_props[] = {
 };
 
 static struct utee_params up;
-struct ts_ctx *ctx;
+
+struct tee_ta_session *ses;
 
 int sel4_init_pkcs11_session()
 {
@@ -135,9 +136,12 @@ int teeos_init_optee(void)
 {
     int ret;
 
-    ctx = malloc(sizeof(struct ts_ctx));
+    ses = calloc(1, sizeof(struct tee_ta_session));
+    if (!ses) {
+        ZF_LOGE("Out of memory");
+        return TEE_OUT_OF_MEMORY;
+    }
 
-    struct tee_ta_session *ses = calloc(1, sizeof(struct tee_ta_session));
     ses->cancel_mask = true;
     ses->lock_thread = 2;
     ses->ref_count = 1;
