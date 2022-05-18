@@ -40,10 +40,6 @@
 
 #define PARAM_NOT_USED  0
 
-extern seL4_CPtr ipc_root_ep;
-extern seL4_CPtr ipc_app_ep1;
-extern void *app_shared_memory;
-
 #define IV_SIZE         16u
 #define NVM_PAGE_COUNTER 128
 enum counter_t {
@@ -87,12 +83,12 @@ struct nvm_counter {
     uint64_t aux_counter;
 };
 
-static int read_counter(enum counter_t counter, uint64_t *value)
+static int read_counter(enum counter_t counter_id, uint64_t *value)
 {
     int ret = -1;
     uint32_t admin_data;
 
-    switch (counter)
+    switch (counter_id)
     {
     case FS_MONOTONIC:
         {
@@ -259,11 +255,17 @@ static int tee_fs_crypt_run(uint8_t *buffer, size_t size,
 
     out = malloc(size);
 
-    if (!out)
+    if (!out) {
+        ZF_LOGE("ERROR: out of memory");
         return -ENOMEM;
+    }
+
     res = crypto_cipher_update(*ctx, mode, last, buffer, size, out);
-    if (!res)
+    if (!res) {
         memcpy(buffer, out, size);
+    } else {
+        ZF_LOGE("ERROR: cipher update: %d", res);
+    }
 
     free(out);
 
@@ -272,10 +274,12 @@ static int tee_fs_crypt_run(uint8_t *buffer, size_t size,
 
 static void tee_fs_crypt_close(void **ctx)
 {
-    if (*ctx) {
-        crypto_cipher_final(*ctx);
-        crypto_cipher_free_ctx(*ctx);
+    if (!ctx || !*ctx) {
+        return;
     }
+
+    crypto_cipher_final(*ctx);
+    crypto_cipher_free_ctx(*ctx);
 }
 
 static int teeos_optee_calc_hash(uint8_t *data,
@@ -485,36 +489,74 @@ static int teeos_optee_import_storage_final(struct rambd_ext_hdr *ramdisk,
     return err;
 }
 
+static int import_storage_init(uint8_t *import_buf, uint32_t storage_len, void **optee_buf)
+{
+    int ret = -1;
+    void* buf = NULL;
+
+    ZF_LOGI("storage_len: %d", storage_len);
+
+    buf = calloc(1, storage_len);
+    if (!buf) {
+        ZF_LOGE("ERROR: out of memory");
+        return -ENOMEM;
+    }
+
+    ret = tee_fs_crypt_init(TEE_MODE_DECRYPT, &fs_ctx, import_buf); /* IV is 16 first bytes */
+    if (ret) {
+        free(buf);
+        ZF_LOGE("ERROR: crypto init: %d", ret);
+        return ret;
+    }
+
+    optee_import.received = 0;
+    optee_import.remaining = storage_len;
+
+    *optee_buf = buf;
+
+    return ret;
+}
+
+static int import_storage_crypto(uint32_t import_len, uint32_t crypto_pos,
+                                 bool first_block, bool last_block)
+{
+    uint8_t *source = optee_import.buf + crypto_pos;
+    uint32_t crypto_len = import_len;
+
+    if (first_block) {
+        /* Skip IV at the beginning of import buffer */
+        source = optee_import.buf + IV_SIZE;
+        crypto_len = import_len - IV_SIZE;
+    }
+
+    return tee_fs_crypt_run(source, (size_t)crypto_len, TEE_MODE_DECRYPT, last_block, &fs_ctx);
+}
+
 int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
                                 uint32_t storage_len)
 {
     int ret = -1;
+
+    bool first_block = false;
+    bool last_block = false;
 
     if (optee_ramdisk) {
         ZF_LOGI("ERROR: ramdisk already initialized");
         return -EACCES;
     }
 
+    if (!import) {
+        ZF_LOGI("ERROR: invalid parameter");
+        return -EINVAL;
+    }
+
     /* allocate buffer for importing storage */
     if (!optee_import.buf) {
-        ZF_LOGI("storage_len: %d", storage_len);
-
-        optee_import.buf = calloc(1, storage_len);
-        if (!optee_import.buf) {
-            ZF_LOGE("ERROR: out of memory");
-            return -ENOMEM;
-        }
-
-        optee_import.received = 0;
-        optee_import.remaining = storage_len;
-
-        ZF_LOGI("Import crypt Init");
-        ret = tee_fs_crypt_init(TEE_MODE_DECRYPT, &fs_ctx, import); /* IV is 16 first bytes */
+        /* function allocates optee_import.buf and fs_ctx */
+        ret = import_storage_init(import, storage_len, &optee_import.buf);
         if (ret) {
-            ZF_LOGE("ERROR: crypto init: %d", ret);
             return ret;
         }
-
     }
 
     if (import_len > optee_import.remaining) {
@@ -523,43 +565,39 @@ int teeos_optee_import_storage(uint8_t *import, uint32_t import_len,
         ret = -EFAULT;
         goto err_out;
     }
+
+    if (optee_import.received == 0) {
+        first_block = true;
+        ZF_LOGI("Import first block");
+    }
+
+    if (optee_import.remaining - import_len == 0) {
+        last_block = true;
+        ZF_LOGI("Received complete storage: %d", optee_import.received + import_len);
+    }
+
     memcpy(optee_import.buf + optee_import.received, import, import_len);
 
+    ret = import_storage_crypto(import_len, optee_import.received,
+                                first_block, last_block);
+    if (ret) {
+        goto err_out;
+    }
+
     optee_import.remaining -= import_len;
-    uint8_t *source = optee_import.buf + optee_import.received;
-    /* First block*/
-    if (optee_import.received == 0) {
-        ZF_LOGI("Decrypting first block");
-        ret = tee_fs_crypt_run(optee_import.buf + IV_SIZE, (size_t)import_len - IV_SIZE, TEE_MODE_DECRYPT, false, &fs_ctx);
-        if (ret) {
-            goto err_out;
-        }
+    optee_import.received += import_len;
 
-    } else  if (optee_import.remaining == 0) {
-        ZF_LOGI("Received complete storage: %d", optee_import.received);
-        ret = tee_fs_crypt_run(source, (size_t)import_len,TEE_MODE_DECRYPT, true, &fs_ctx);
-        if (ret) {
-            ZF_LOGE("ERROR: crypto op: %d", ret);
-            goto err_out;
-        }
-
+    if (last_block) {
         tee_fs_crypt_close(&fs_ctx);
         fs_ctx = NULL;
 
-        ret = teeos_optee_import_storage_final(optee_import.buf, optee_import.received + import_len);
+        ret = teeos_optee_import_storage_final(optee_import.buf, optee_import.received);
         if (ret) {
             goto err_out;
         }
         optee_ramdisk = optee_import.buf;
-    } else {
-        ret = tee_fs_crypt_run(source, (size_t)import_len,TEE_MODE_DECRYPT, false, &fs_ctx);
-        if (ret) {
-            ZF_LOGE("ERROR: crypto op: %d", ret);
-            goto err_out;
-        }
     }
 
-    optee_import.received += import_len;
     return 0;
 
 err_out:
@@ -570,4 +608,3 @@ err_out:
 
     return ret;
 }
-
