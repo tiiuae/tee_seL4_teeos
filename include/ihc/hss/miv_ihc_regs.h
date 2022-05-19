@@ -178,7 +178,7 @@ typedef struct IHC_IP_TypeDef_
   __I   uint32_t unused[4U];                /*!< not used  */
   __I   uint32_t  mesg_in[IHC_MAX_MESSAGE_SIZE]; 	/*!< message in           */
   __IO  uint32_t  mesg_out[IHC_MAX_MESSAGE_SIZE]; 	/*!< message out          */
-  __I   uint8_t  reserved[RESREVED_ADDRESS_SPACE_IHC - IHC_USED__ADDRESS_SIZE];  /*!< reserved address space       */
+  __I   uint8_t  reserved[RESREVED_ADDRESS_SPACE_IHC + IHC_USED__ADDRESS_SIZE];  /*!< reserved address space       */
 } IHC_IP_TypeDef;
 
 /***************************************************************************//**
@@ -279,6 +279,7 @@ typedef struct IHCIA_IP_TypeDef_
   __IO  uint32_t  version;
   __IO  IHCA_IP_INT_EN_TypeDef			INT_EN;
   __I   IHCA_IP_MSG_AVAIL_STAT_TypeDef  MSG_AVAIL_STAT;
+  __I   uint8_t reserved[244]; /* size rounded up to channel reg */
 } IHCIA_IP_TypeDef;
 
 
