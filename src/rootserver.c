@@ -48,13 +48,13 @@
 #define FDT_PATH_SYSREGCB               "/sysregscb"
 #define FDT_PATH_RPMSG                  "/rpmsg"
 #define FDT_PATH_CRASHLOG               "/sel4_crashlog"
+#define FDT_PATH_IHC_FPGA               "/miv_ihc"
 
 #define RESUME_PROCESS                  1
 
 #define TEE_COMM_APP_BADGE              0x80
 #define SYS_APP_BADGE                   0x81
 #define SHARED_MEM_PAGE_COUNT           8
-#define IHC_BUF_PAGES                   1
 
 struct fdt_config {
     uintptr_t paddr;
@@ -426,12 +426,11 @@ static void send_rpmsg_conf(struct root_env *ctx)
 {
     struct ipc_msg_ihc_buf hss_ihc = {
         .cmd_id = IPC_CMD_RPMSG_CONF_RESP,
-        .ihc_buf_va = (uintptr_t)ctx->rpmsg.ihc_buf_va,
-        .ihc_buf_pa = ctx->rpmsg.ihc_buf_pa,
         .ihc_irq = ctx->rpmsg.ihc_irq,
         .ihc_ntf = ctx->rpmsg.ihc_ntf,
         .vring_va = (uintptr_t)ctx->rpmsg.vring_va,
         .vring_pa = ctx->rpmsg.vring_pa,
+        .ihc_reg = (uintptr_t)ctx->rpmsg.ihc_reg_base,
     };
 
     const uint32_t msg_words = IPC_CMD_WORDS(hss_ihc);
@@ -594,6 +593,45 @@ static int map_rpmsg_vring(struct root_env *ctx)
     return err;
 }
 
+static int map_ihc_fpga(struct root_env *ctx)
+{
+    int err = -1;
+
+    struct fdt_config cfg = { 0 };
+    struct fdt_cb_token fdt_token = {
+        .ctx = ctx,
+    };
+
+    int page_count = 0;
+
+    fdt_token.fdt_path = FDT_PATH_IHC_FPGA;
+    fdt_token.config = &cfg;
+
+    err = map_from_fdt(ctx, &fdt_token, &ctx->comm_app.app_proc);
+    if (err) {
+        return err;
+    }
+
+    page_count = BYTES_TO_SIZE_BITS_PAGES(fdt_token.config->len, seL4_PageBits);
+
+    ctx->rpmsg.ihc_reg_base = vspace_share_mem(&ctx->vspace,
+                                               &ctx->comm_app.app_proc.vspace,
+                                               fdt_token.config->root_addr,
+                                               page_count,
+                                               seL4_PageBits,
+                                               seL4_AllRights,
+                                               MEM_CACHED);
+
+    if (!ctx->rpmsg.ihc_reg_base) {
+        ZF_LOGF("ihc_reg_base == NULL");
+        return EFAULT;
+    }
+
+    ZF_LOGI("ihc_reg_base, comm_app: %p", ctx->rpmsg.ihc_reg_base);
+
+    return err;
+}
+
 static int map_sel4_crashlog_rootserver(struct root_env *ctx)
 {
     int err = -1;
@@ -649,53 +687,6 @@ static int map_sel4_crashlog_apps(struct root_env *ctx)
     }
 
     ZF_LOGI("crashlog sys_app:  %p", app->crashlog);
-
-    return 0;
-}
-
-static int setup_ihc_buf(struct root_env *ctx)
-{
-    void *ihc_page = vspace_new_pages(&ctx->vspace,
-                                     seL4_AllRights,
-                                     IHC_BUF_PAGES,
-                                     seL4_PageBits);
-    if (!ihc_page) {
-        ZF_LOGF("ERROR ihc_page: out of memory");
-        return -ENOMEM;
-    }
-
-    memset(ihc_page, 0x0, SIZE_BITS_TO_BYTES(seL4_PageBits) * IHC_BUF_PAGES);
-
-    ctx->rpmsg.ihc_buf_pa =
-        sel4utils_get_paddr(&ctx->vspace, ihc_page,
-                            seL4_UntypedObject, seL4_PageBits);
-
-    if (ctx->rpmsg.ihc_buf_pa == 0) {
-        ZF_LOGF("ERROR ihc_buff_pa: invalid address");
-        return -EACCES;
-    }
-
-    /* share ihc memory to comm_app vspace */
-    ctx->rpmsg.ihc_buf_va =
-        vspace_share_mem(&ctx->vspace,
-                         &ctx->comm_app.app_proc.vspace,
-                         ihc_page,
-                         IHC_BUF_PAGES,
-                         seL4_PageBits,
-                         seL4_AllRights, MEM_CACHED);
-
-    if (!ctx->rpmsg.ihc_buf_va) {
-        ZF_LOGF("vspace_share_mem == NULL");
-        return -EFAULT;
-    }
-
-    ZF_LOGI("ihc_buf: %p r[%p] a[%p]", (void *)ctx->rpmsg.ihc_buf_pa,
-            ihc_page, ctx->rpmsg.ihc_buf_va);
-
-
-    /* If this function fails ihc_page is leaked. However the whole seL4
-     * startup should fail in that case.
-     */
 
     return 0;
 }
@@ -887,8 +878,7 @@ int main(void)
         return err;
     }
 
-    /* Setup HSS IHC buffer */
-    err = setup_ihc_buf(ctx);
+    err = map_ihc_fpga(ctx);
     if (err) {
         return err;
     }

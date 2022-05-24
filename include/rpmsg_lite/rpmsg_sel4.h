@@ -22,11 +22,10 @@ typedef seL4_Error (*sel4_irq_handler_ack_fn)(seL4_IRQHandler _service);
 typedef void (*sel4_wait_fn)(seL4_CPtr src, seL4_Word *sender);
 
 struct sel4_rpmsg_config {
-    uintptr_t ihc_buf_pa;
-    void *ihc_buf_va;
-
     seL4_CPtr ihc_irq;
     seL4_CPtr ihc_ntf;
+
+    void *ihc_reg_base;
 
     sel4_wait_fn            irq_notify_wait;
     sel4_irq_handler_ack_fn irq_handler_ack;

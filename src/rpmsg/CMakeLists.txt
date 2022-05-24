@@ -35,4 +35,5 @@ target_link_libraries(rpmsg_lite
         sel4platsupport
         sel4_autoconf
         sel4_teeos_Config
+        sel4_ihc
 )

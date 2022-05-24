@@ -10,6 +10,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <sel4_teeos/gen_config.h>
 #include <sel4runtime.h>
 #include "rpmsg_platform.h"
@@ -19,6 +20,8 @@
 
 #include "linux/dt-bindings/mailbox/miv-ihc.h"
 #include "linux/mailbox/miv_ihc_message.h"
+
+#include "sel4_ihc.h"
 
 /* Local log level */
 #define ZF_LOG_LEVEL ZF_LOG_ERROR
@@ -72,7 +75,7 @@ int32_t platform_deinit_interrupt(uint32_t vector_id)
 
 void platform_notify(uint32_t vector_id)
 {
-    struct miv_ihc_msg *tx = NULL;
+    struct miv_ihc_msg tx = { 0 };
 
     if (!sel4_config) {
         ZF_LOGE("Config uninitialized");
@@ -81,14 +84,9 @@ void platform_notify(uint32_t vector_id)
 
     env_lock_mutex(platform_lock);
 
-    tx = (struct miv_ihc_msg *)sel4_config->ihc_buf_va;
+    tx.msg[0] = (uint32_t)(vector_id << 16);
 
-    memset(tx, 0xFF, sizeof(struct miv_ihc_msg));
-
-    tx->msg[0] = (uint32_t)(vector_id << 16);
-
-    /* Init HSS IHC */
-    seL4_HssIhcCall(SBI_EXT_IHC_TX, IHC_CONTEXT_A, sel4_config->ihc_buf_pa);
+    sel4_ihc_ree_tx(&tx);
 
     env_unlock_mutex(platform_lock);
 }
@@ -223,8 +221,11 @@ int32_t platform_init(void)
     if (err)
         return err;
 
-    /* Init HSS IHC */
-    seL4_HssIhcCall(SBI_EXT_IHC_INIT, IHC_CONTEXT_A, UNUSED_PARAM);
+    /* Init FPGA IHC */
+    err = sel4_ihc_setup_ch_to_ree();
+    if (err) {
+        return err;
+    }
 
     return err;
 }
@@ -242,33 +243,35 @@ int32_t platform_deinit(void)
     return 0;
 }
 
-static uint32_t platform_ihc_get_next(struct sel4_rpmsg_config *config)
+static int platform_ihc_get_next(struct sel4_rpmsg_config *config, uint32_t *ihc)
 {
-    int res = IHC_CALL_NOP;
-    struct ihc_sbi_msg *resp = config->ihc_buf_va;
+    int res = -1;
+
+    uint32_t irq_type = 0;
+    struct miv_ihc_msg ihc_msg = { 0 };
+
     uint32_t vring_idx = 0;
 
-    /* Clear garbage from recv buffer as non-channel IRQ does not modify
-     * the contents */
-    memset(resp, 0xFF, sizeof(struct ihc_sbi_msg));
+    res = sel4_ihc_ree_rx(&irq_type, &ihc_msg);
+    /* Interrupts cleared, but no IHC message recveived -> NOP */
+    if (res == -ENXIO) {
+        *ihc = IHC_CALL_NOP;
+        return 0;
+    }
 
-    seL4_HssIhcCall(SBI_EXT_IHC_RX, IHC_CONTEXT_A, config->ihc_buf_pa);
+    if (res) {
+        return res;
+    }
 
-    switch (resp->irq_type) {
-    case IHC_MP_IRQ:
-        ZF_LOGI("IHC_MP_IRQ: [0x%x 0x%x]", resp->ihc_msg.msg[0],
-                resp->ihc_msg.msg[1]);
+    if (irq_type == IHC_MP_IRQ) {
+        ZF_LOGI("IHC_MP_IRQ: [0x%x 0x%x]", ihc_msg.msg[0], ihc_msg.msg[1]);
 
-        vring_idx = resp->ihc_msg.msg[0];
+        vring_idx = ihc_msg.msg[0];
         env_isr((uint32_t)(vring_idx >> 16));
-        res = IHC_CALL_MP;
-        break;
-    case IHC_ACK_IRQ:
-        ZF_LOGI("IHC_ACK_IRQ");
-        res = IHC_CALL_ACK;
-        break;
-    default:
-        ZF_LOGI("IRQ N/A [0x%x]", resp->irq_type);
+        *ihc = IHC_CALL_MP;
+
+    } else { /* IHC_ACK_IRQ */
+        *ihc = IHC_CALL_ACK;
     }
 
     return res;
@@ -287,7 +290,10 @@ int platform_wait_ihc(uint32_t *ihc_type)
 
     sel4_config->irq_notify_wait(sel4_config->ihc_ntf, &badge);
 
-    ihc = platform_ihc_get_next(sel4_config);
+    err = platform_ihc_get_next(sel4_config, &ihc);
+    if (err) {
+        return RL_NOT_READY;
+    }
 
     if (ihc_type) {
         *ihc_type = ihc;

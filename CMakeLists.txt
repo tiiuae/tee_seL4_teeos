@@ -124,6 +124,7 @@ target_link_libraries(teeos_comm_app
         sel4_teeos_Config
         rpmsg_lite
         sel4_crashlog
+        sel4_ihc
 )
 
 add_subdirectory(src/teeos_service)

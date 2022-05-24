@@ -58,12 +58,11 @@ struct ipc_msg_crash_log_addr {
 
 struct ipc_msg_ihc_buf {
     seL4_Word cmd_id;
-    seL4_Word ihc_buf_va;       /* IHC buffer, app addr */
-    seL4_Word ihc_buf_pa;       /* IHC buffer, physical addr */
     seL4_Word ihc_irq;          /* IHC irq */
     seL4_Word ihc_ntf;          /* IHC irq notfication */
     seL4_Word vring_va;         /* vring comm_app addr */
     seL4_Word vring_pa;         /* vring physical addr */
+    seL4_Word ihc_reg;          /* IHC FPGA comm_app addr */
 };
 
 struct ipc_msg_cys_ctl_addr {

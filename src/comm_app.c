@@ -33,6 +33,7 @@
 #include "sel4_crashlog.h"
 #include "sel4_optee_serializer.h"
 #include "pkcs11_ta.h"
+#include "sel4_ihc.h"
 
 static seL4_CPtr ipc_root_ep = 0;
 static seL4_CPtr ipc_app_ep1 = 0;
@@ -167,20 +168,23 @@ static int setup_ihc_buf(struct sel4_rpmsg_config *rpmsg_conf)
         return error;
     }
 
-    rpmsg_conf->ihc_buf_pa = ipc_resp.ihc_buf_pa;
-    rpmsg_conf->ihc_buf_va = (void*)ipc_resp.ihc_buf_va;
     rpmsg_conf->ihc_irq = ipc_resp.ihc_irq;
     rpmsg_conf->ihc_ntf = ipc_resp.ihc_ntf;
     rpmsg_conf->vring_va = (void*)ipc_resp.vring_va;
     rpmsg_conf->vring_pa = ipc_resp.vring_pa;
+    rpmsg_conf->ihc_reg_base = (void*)ipc_resp.ihc_reg;
 
     rpmsg_conf->irq_handler_ack = seL4_IRQHandler_Ack;
     rpmsg_conf->irq_notify_wait = seL4_Wait;
 
-    ZF_LOGI("ihc_buf_pa [0x%lx]", rpmsg_conf->ihc_buf_pa);
-    ZF_LOGI("ihc_buf_va [%p]", rpmsg_conf->ihc_buf_va);
+    error = sel4_ihc_init(comm.rpmsg_conf.ihc_reg_base);
+    if (error) {
+        return error;
+    }
+
     ZF_LOGI("ihc_irq    [0x%lx]", rpmsg_conf->ihc_irq);
     ZF_LOGI("ihc_ntf    [0x%lx]", rpmsg_conf->ihc_ntf);
+    ZF_LOGI("ihc_reg    [%p]", rpmsg_conf->ihc_reg_base);
     ZF_LOGI("vring_va   [%p]", rpmsg_conf->vring_va);
     ZF_LOGI("vring_pa   [0x%lx]", rpmsg_conf->vring_pa);
 
