@@ -82,3 +82,21 @@ target_link_libraries(sel4_crashlog
         sel4platsupport
         sel4_teeos_Config
 )
+
+add_library(sel4_ihc STATIC
+    sel4_ihc.c
+)
+
+target_include_directories(sel4_ihc
+    PUBLIC
+        ${SEL4_TEEOS_INCLUDE}
+        ${SEL4_TEEOS_INCLUDE}/ihc
+        ${SEL4_TEEOS_INCLUDE}/ihc/hss
+)
+
+target_link_libraries(sel4_ihc
+    PRIVATE
+        muslc
+        sel4platsupport
+        sel4_teeos_Config
+)

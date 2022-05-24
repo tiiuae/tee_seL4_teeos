@@ -22,6 +22,7 @@
 #define MIV_IHC_CONFIG_H_
 
 #include "miv_ihc_add_mapping.h"
+#include "miv_ihc_defines.h"
 
 /*------------------------------------------------------------------------------
  * define the monitor hart (HSS hart) used in our system
@@ -29,6 +30,8 @@
 #define HSS_HART_MASK               HART0_MASK
 #define HSS_HART_ID                 HART0_ID
 
+#define IHC_REE_HART_ID             HART1_ID
+#define IHC_SEL4_HART_ID            HART4_ID
 /*------------------------------------------------------------------------------
  * HSS_REMOTE_HARTS_MASK
  * This is used to define the harts the HSS is communicating with
