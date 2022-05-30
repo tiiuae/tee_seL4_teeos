@@ -39,6 +39,19 @@ struct ihc_reg_cluster
     IHCIA_IP_TypeDef interrupt_concentrator;
 };
 
+/*
+ * IHC channel register index map. Content as
+ * "Base address definitions" in miv_ihc_regs.h.
+ */
+#define DUMMY_IDX   0
+static const uint32_t local_hart_remote_map[5][5] = {
+    {DUMMY_IDX, 0, 1, 2, 3}, /* hart 0 remote: H1, H2, H3, H4 */
+    {0, DUMMY_IDX, 1, 2, 3}, /* hart 1 remote: H0, H2, H3, H4 */
+    {0, 1, DUMMY_IDX, 2, 3}, /* hart 2 remote: H0, H1, H3, H4 */
+    {0, 1, 2, DUMMY_IDX, 3}, /* hart 3 remote: H0, H1, H2, H4 */
+    {0, 1, 2, 3, DUMMY_IDX}, /* hart 4 remote: H0, H1, H2, H3 */
+};
+
 static void print_cluster_reg(struct ihc_reg_cluster *hart_reg)
 {
     for (int i = 0; i < 4; i++) {
@@ -103,6 +116,7 @@ static int get_ree_ihc(uint32_t *sender, uint32_t *irq_type, struct miv_ihc_msg 
     uint32_t irq_mp = 0;
 
     int32_t hart_id = -1;
+    uint32_t idx = 0;
 
     /*
      * Find hart which has sent ack or msg.
@@ -123,11 +137,14 @@ static int get_ree_ihc(uint32_t *sender, uint32_t *irq_type, struct miv_ihc_msg 
         return -ENXIO;
     }
 
+    /* remote hart location in channel cluster */
+    idx = local_hart_remote_map[IHC_SEL4_HART_ID][hart_id];
+
     if (irq_ack) {
         ZF_LOGI("IHC_ACK_IRQ [%d]", hart_id);
 
         /* clear the ack */
-        sel4_ihc->HART_IHC[hart_id].CTR_REG.CTL_REG &= ~ACK_CLR;
+        sel4_ihc->HART_IHC[idx].CTR_REG.CTL_REG &= ~ACK_CLR;
 
         *sender = hart_id;
         *irq_type = IHC_ACK_IRQ;
@@ -135,7 +152,7 @@ static int get_ree_ihc(uint32_t *sender, uint32_t *irq_type, struct miv_ihc_msg 
     } else { /* irq_mp */
         ZF_LOGI("IHC_MP_IRQ [%d]", hart_id);
 
-        ctl_reg = sel4_ihc->HART_IHC[hart_id].CTR_REG.CTL_REG;
+        ctl_reg = sel4_ihc->HART_IHC[idx].CTR_REG.CTL_REG;
 
         /* no message after all */
         if (!(ctl_reg & MP_MESSAGE_PRESENT)) {
@@ -144,8 +161,8 @@ static int get_ree_ihc(uint32_t *sender, uint32_t *irq_type, struct miv_ihc_msg 
         }
 
         memcpy(ihc_msg->msg,
-            (uint32_t *)sel4_ihc->HART_IHC[hart_id].mesg_in,
-            sel4_ihc->HART_IHC[hart_id].size_msg * sizeof(uint32_t));
+            (uint32_t *)sel4_ihc->HART_IHC[idx].mesg_in,
+            sel4_ihc->HART_IHC[idx].size_msg * sizeof(uint32_t));
 
         /* copy data from IHC buffer before ACK to sender */
         COMPILER_MEMORY_RELEASE();
@@ -159,7 +176,7 @@ static int get_ree_ihc(uint32_t *sender, uint32_t *irq_type, struct miv_ihc_msg 
             ZF_LOGI("ACKIE_EN");
         }
 
-        sel4_ihc->HART_IHC[hart_id].CTR_REG.CTL_REG = ctl_reg;
+        sel4_ihc->HART_IHC[idx].CTR_REG.CTL_REG = ctl_reg;
 
         *sender = hart_id;
         *irq_type = IHC_MP_IRQ;
@@ -200,26 +217,27 @@ int sel4_ihc_ree_rx(uint32_t *irq_type, struct miv_ihc_msg *ihc_msg)
 
 void sel4_ihc_ree_tx(struct miv_ihc_msg *ihc_msg)
 {
-    volatile uint32_t ctl_reg = sel4_ihc->HART_IHC[IHC_REE_HART_ID].CTR_REG.CTL_REG;
+    const uint32_t idx = local_hart_remote_map[IHC_SEL4_HART_ID][IHC_REE_HART_ID];
+    volatile uint32_t ctl_reg = sel4_ihc->HART_IHC[idx].CTR_REG.CTL_REG;
 
     /* wait until target has processed previous IHC */
     while (ctl_reg & RMP_MESSAGE_PRESENT ||
         ctl_reg & ACK_INT_MASK) {
-        ctl_reg = sel4_ihc->HART_IHC[IHC_REE_HART_ID].CTR_REG.CTL_REG;
+        ctl_reg = sel4_ihc->HART_IHC[idx].CTR_REG.CTL_REG;
     }
 
     /* Target must finnish ongoing IHC before a new msg can be copied */
     COMPILER_MEMORY_RELEASE();
 
-    memcpy((void *)sel4_ihc->HART_IHC[IHC_REE_HART_ID].mesg_out,
+    memcpy((void *)sel4_ihc->HART_IHC[idx].mesg_out,
            ihc_msg,
-           sel4_ihc->HART_IHC[IHC_REE_HART_ID].size_msg * sizeof(uint32_t));
+           sel4_ihc->HART_IHC[idx].size_msg * sizeof(uint32_t));
 
     /* copy data to IHC buffer before raising IRQ to target */
     COMPILER_MEMORY_RELEASE();
 
     /* Set the MP bit. This will notify other of incoming hart message */
-    sel4_ihc->HART_IHC[IHC_REE_HART_ID].CTR_REG.CTL_REG |= RMP_MESSAGE_PRESENT;
+    sel4_ihc->HART_IHC[idx].CTR_REG.CTL_REG |= RMP_MESSAGE_PRESENT;
 }
 
 int sel4_ihc_init(void *ihc_reg_base)
